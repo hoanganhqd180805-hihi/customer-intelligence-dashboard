@@ -26,7 +26,7 @@ export function ShoppingTrendsSection() {
   const insight = compositionView === "orders" ? "Bán lẻ chiếm tỷ trọng đơn hàng lớn nhất." : "Bán lẻ dẫn đầu doanh thu; Combo đóng góp cao hơn tỷ trọng đơn.";
   return (
     <section>
-      <SectionHeading title="03. Xu hướng mua sắm" subtitle="Cơ cấu giỏ hàng, danh mục bán chạy và cơ hội Combo." />
+      <SectionHeading title="04. Xu hướng mua sắm" subtitle="Cơ cấu giỏ hàng, danh mục bán chạy và cơ hội Combo." />
       <div className="grid grid-cols-2 gap-4">
         <Card className="flex h-[337px] flex-col p-4">
           <div className="flex items-start justify-between gap-3"><div><h3 className="text-[15px] font-semibold">Cơ cấu mua sắm</h3><p className="mt-1 text-[12px] text-[#707070]">Combo, bán lẻ và hỗn hợp</p></div><SegmentedControl value={compositionView} options={compositionOptions} onChange={setCompositionView} ariaLabel="Chỉ số cơ cấu mua sắm" /></div>

@@ -23,7 +23,7 @@ function RecommendationCard({ item }: { item: RecommendationData }) {
 export function RecommendationsSection() {
   return (
     <section className="overflow-hidden rounded-2xl border border-[#d9dfe9] bg-white">
-      <header className="flex h-[64px] items-center justify-between border-b border-[#d9dfe9] bg-[#f3f7ff] px-4"><div><p className="text-[11px] text-[#3b82f6]">AI Insights <span className="text-[#777]">Customer Intelligence</span></p><h2 className="mt-1 text-[17px] font-semibold">05. Đề xuất tổng hợp</h2></div><div className="text-right"><p className="text-[11px] text-[#777]">Phát hiện</p><strong className="text-[18px] text-[#3b82f6]">4 đề xuất</strong></div></header>
+      <header className="flex h-[64px] items-center justify-between border-b border-[#d9dfe9] bg-[#f3f7ff] px-4"><div><p className="text-[11px] text-[#3b82f6]">AI Insights <span className="text-[#777]">Customer Intelligence</span></p><h2 className="mt-1 text-[17px] font-semibold">06. Đề xuất tổng hợp</h2></div><div className="text-right"><p className="text-[11px] text-[#777]">Phát hiện</p><strong className="text-[18px] text-[#3b82f6]">4 đề xuất</strong></div></header>
       <div className="grid grid-cols-2 items-stretch gap-4 p-3.5">{recommendations.map((item) => <RecommendationCard key={item.id} item={item} />)}</div>
     </section>
   );

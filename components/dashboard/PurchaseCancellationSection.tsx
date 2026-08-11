@@ -61,19 +61,22 @@ export function PurchaseCancellationSection() {
   const state = useSectionData(getPurchaseTimeData, startDate, endDate, isPurchaseTimeEmpty);
   const stateLabel = state.status === "loading" ? "Đang tải dữ liệu" : state.status === "empty" ? "Không có dữ liệu trong kỳ" : state.status === "unavailable" ? "Dữ liệu chưa khả dụng" : state.status === "error" ? `Không thể tải dữ liệu: ${state.message}` : null;
   return (
-    <section>
-      <SectionHeading title="02. Thời điểm mua hàng & Phân tích lý do huỷ đơn" subtitle="Hai tín hiệu hành vi và vận hành được đặt cùng một hàng để rút ngắn dashboard." />
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="flex min-h-[368px] flex-col p-4">
+    <div className="grid grid-cols-1 gap-8 min-[1050px]:grid-cols-2 min-[1050px]:gap-4">
+      <section className="flex min-w-0 flex-col">
+        <SectionHeading title="02. Thời điểm mua hàng" subtitle="Khách hàng thường phát sinh đơn vào thời điểm nào?" />
+        <Card className="flex min-h-[368px] w-full flex-1 flex-col p-4">
           <div className="flex items-start justify-between gap-3"><div><h3 className="text-[15px] font-semibold">Thời điểm mua hàng</h3><p className="mt-1 text-[12px] text-[#707070]">Khách thường mua khi nào?</p></div><SegmentedControl value={view} options={purchaseOptions} onChange={setView} ariaLabel="Chế độ phân tích thời điểm mua hàng" /></div>
           <div className="mt-4 h-[250px] min-h-0">{state.status === "success" ? <PurchaseVisualization view={view} data={state.data} /> : <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[#e5e5e5] bg-[#fbfbfb] px-4 text-center text-[12px] text-[#aaa]">{stateLabel}</div>}</div>
         </Card>
-        <Card className="flex min-h-[368px] flex-col p-4">
+      </section>
+      <section className="flex min-w-0 flex-col">
+        <SectionHeading title="03. Phân tích lý do huỷ đơn" subtitle="Nguyên nhân huỷ đơn và giá trị doanh thu thất thoát." />
+        <Card className="flex min-h-[368px] w-full flex-1 flex-col p-4">
           <div className="flex items-start justify-between gap-3"><div><h3 className="text-[15px] font-semibold">Phân tích lý do huỷ đơn</h3><p className="mt-1 text-[12px] text-[#707070]">Tỷ trọng theo từng nguyên nhân</p></div><SegmentedControl value={cancellationView} options={cancellationOptions} onChange={setCancellationView} ariaLabel="Chỉ số phân tích lý do huỷ đơn"/></div>
           <CancellationVisualization view={cancellationView} data={cancellationData}/>
           <div className="mt-4 grid grid-cols-2 gap-2.5"><div className="rounded-xl border border-[#dedede] p-2"><span className="text-[9px] text-[#777]">{cancellationView==="orders"?"Tổng đơn huỷ":"Thiệt hại kỳ này"}</span><strong className="mt-1 block text-[16px] text-[#180bd4]">{cancellationView==="orders"?fullNumber.format(cancellationData.totalCancelledOrders):compactNumber.format(cancellationData.totalLostRevenue)}</strong></div><div className="rounded-xl border border-[#dedede] p-2"><span className="text-[9px] text-[#777]">So với kỳ trước</span><strong className="mt-1 block text-[16px] text-[#3b82f6]">—</strong></div></div>
         </Card>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
