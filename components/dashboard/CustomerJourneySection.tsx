@@ -8,8 +8,16 @@ import { layoutJourney } from "@/lib/journey/layout";
 
 interface TooltipState { node: JourneyNodeData; x:number; y:number }
 const numberFormat=new Intl.NumberFormat("en-US");
-const conversionRates=[["2.0%","Ads → Product View"],["33.8%","Product View → Order"],["83.3%","Order → Complete"],["19.4%","Complete → Good Review"]] as const;
-const dropoffs=[["↓98.0%","Ads → Product View"],["↓66.2%","Product View → Order"],["↓16.7%","Order → Complete"]];
+const sourceNodeMap=new Map(journeyNodes.map((node)=>[node.id,node]));
+const sourceLinkMap=new Map(journeyLinks.map((link)=>[link.id,link]));
+const linkLabel=(id:string)=>sourceLinkMap.get(id)!.label;
+const dropOffLabel=(id:string)=>`↓${(100-Number.parseFloat(linkLabel(id))).toFixed(1)}%`;
+const conversionRates=[[linkLabel("ads-productview"),"Ads → Product View"],[linkLabel("productview-order"),"Product View → Order"],[linkLabel("order-complete"),"Order → Complete"],[linkLabel("complete-goodreview"),"Complete → Good Review"]];
+const dropoffs=[[dropOffLabel("ads-productview"),"Ads → Product View"],[dropOffLabel("productview-order"),"Product View → Order"],[dropOffLabel("order-complete"),"Order → Complete"]];
+const orderValue=sourceNodeMap.get("order")!.value;
+const completeValue=sourceNodeMap.get("complete")!.value;
+const goodReviewValue=sourceNodeMap.get("goodreview")!.value;
+const buyAgainValue=sourceNodeMap.get("buyagain")!.value;
 
 function clampTooltip(clientX:number,clientY:number){const width=230,height=82,pad=14;return {x:Math.max(pad,Math.min(clientX+14,window.innerWidth-width-pad)),y:Math.max(pad,Math.min(clientY+14,window.innerHeight-height-pad))};}
 
@@ -40,7 +48,7 @@ export function CustomerJourneySection() {
         </svg>
       </div>
       <div className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-3">{dropoffs.map(([value,label],index)=><div key={label} className={`rounded-[12px] border px-3 py-2 text-[12px] text-[#9aa3c9] ${index===0?"border-[#e2504a]/50 bg-[#e2504a]/[.12]":"border-white/[.08] bg-white/[.04]"}`}><b className={`mb-0.5 block text-[15px] ${index===0?"text-[#ff8f89]":"text-white"}`}>{value}</b>{label}</div>)}</div>
-      <div className="mt-2.5 rounded-[14px] border border-[#86eae9]/25 bg-[#86eae9]/[.08] p-3 text-[12px] leading-[1.55] text-[#cfe9ff]"><div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_1fr_1fr]"><div><p className="mb-0.5 text-[10px] tracking-[.08em] text-[#7d8aa8]">BIGGEST DROP-OFF</p><b className="text-[#86eae9]">Ads → Product View · 98.0%</b><br/>93,760 ad impressions generated 1,880 product views, equivalent to a 2.0% conversion rate.</div><div className="lg:border-l lg:border-white/[.08] lg:pl-3"><p className="mb-0.5 text-[10px] tracking-[.08em] text-[#7d8aa8]">ORDER QUALITY</p><b className="text-[#86eae9]">530 / 636 completed orders</b><br/>The completion rate reached 83.3%, while cancelled orders accounted for 16.7% of total orders.</div><div className="lg:border-l lg:border-white/[.08] lg:pl-3"><p className="mb-0.5 text-[10px] tracking-[.08em] text-[#7d8aa8]">POST-PURCHASE SIGNAL</p><b className="text-[#86eae9]">103 Good Review · 35 Buy Again</b><br/>Good Reviews represented 19.4% and Buy Again represented 6.6% of completed orders.</div></div></div>
+      <div className="mt-2.5 rounded-[14px] border border-[#86eae9]/25 bg-[#86eae9]/[.08] p-3 text-[12px] leading-[1.55] text-[#cfe9ff]"><div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.2fr_1fr_1fr]"><div><p className="mb-0.5 text-[10px] tracking-[.08em] text-[#7d8aa8]">BIGGEST DROP-OFF</p><b className="text-[#86eae9]">Ads → Product View · {dropOffLabel("ads-productview").slice(1)}</b><br/>{numberFormat.format(sourceNodeMap.get("ads")!.value)} ad impressions generated {numberFormat.format(sourceNodeMap.get("productview")!.value)} product views, equivalent to a {linkLabel("ads-productview")} conversion rate.</div><div className="lg:border-l lg:border-white/[.08] lg:pl-3"><p className="mb-0.5 text-[10px] tracking-[.08em] text-[#7d8aa8]">ORDER QUALITY</p><b className="text-[#86eae9]">{numberFormat.format(completeValue)} / {numberFormat.format(orderValue)} completed orders</b><br/>The completion rate reached {linkLabel("order-complete")}, while cancelled orders accounted for {linkLabel("order-cancel")} of total orders.</div><div className="lg:border-l lg:border-white/[.08] lg:pl-3"><p className="mb-0.5 text-[10px] tracking-[.08em] text-[#7d8aa8]">POST-PURCHASE SIGNAL</p><b className="text-[#86eae9]">{numberFormat.format(goodReviewValue)} Good Review · {numberFormat.format(buyAgainValue)} Buy Again</b><br/>Good Reviews represented {linkLabel("complete-goodreview")} and Buy Again represented {linkLabel("complete-buyagain")} of completed orders.</div></div></div>
       {tooltip&&<div role="tooltip" className="pointer-events-none fixed z-[1000] max-w-[230px] rounded-[10px] border border-[#86eae9]/25 bg-[#070a1b]/95 px-[11px] py-[9px] text-[12px] leading-5 text-[#eef1fb] shadow-xl" style={{left:tooltip.x,top:tooltip.y}}><strong className="text-[12.5px] text-white">{tooltip.node.label}</strong><br/><span>{numberFormat.format(tooltip.node.value)}</span><br/><span className="text-[#8e99be]">{tooltip.node.meta}</span></div>}
     </section>
   );

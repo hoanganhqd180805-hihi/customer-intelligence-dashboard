@@ -13,6 +13,8 @@ export function adaptDashboardResponse(raw: RawDashboardResponse): DashboardMode
   const links: JourneyLink[] = raw.journey.links.map((row) => ({ ...row }));
   const transitions = links.map(transitionFromLink);
   const transition = (id: string) => transitions.find((item) => item.id === id)!;
+  const node = (id:string) => raw.journey.nodes.find((item)=>item.id===id)!;
+  const percentage = (ratio:number) => `${(ratio*100).toFixed(1)}%`;
   return {
     overview: {
       totalCustomers: { label: "Tổng số khách hàng", value: raw.overview.total_customers, unit: "count", comparison: unavailableComparison },
@@ -43,14 +45,14 @@ export function adaptDashboardResponse(raw: RawDashboardResponse): DashboardMode
     journey: {
       stages: [...raw.journey.stages], nodes: raw.journey.nodes.map((row) => ({ id: row.id, stage: row.stage, label: row.label, value: row.value, color: row.color, meta: row.metadata })), links, transitions,
       summaryCards: [
-        { value: "2.0%", label: "Ads → Product View" }, { value: "33.8%", label: "Product View → Order" },
-        { value: "83.3%", label: "Order → Complete" }, { value: "19.4%", label: "Complete → Good Review" },
+        { value:percentage(transition("ads-productview").conversionRate), label: "Ads → Product View" }, { value:percentage(transition("productview-order").conversionRate), label: "Product View → Order" },
+        { value:percentage(transition("order-complete").conversionRate), label: "Order → Complete" }, { value:percentage(transition("complete-goodreview").conversionRate), label: "Complete → Good Review" },
       ],
       dropOffCards: ["ads-productview", "productview-order", "order-complete"].map((id, index) => ({ value: `↓${(transition(id).dropOffRate * 100).toFixed(1)}%`, label: `${raw.journey.nodes.find((node) => node.id === transition(id).source)!.label} → ${raw.journey.nodes.find((node) => node.id === transition(id).target)!.label}`, emphasized: index === 0 })),
       insights: [
-        { eyebrow: "BIGGEST DROP-OFF", headline: "Ads → Product View · 98.0%", detail: "93,760 ad impressions generated 1,880 product views, equivalent to a 2.0% conversion rate." },
-        { eyebrow: "ORDER QUALITY", headline: "530 / 636 completed orders", detail: "The completion rate reached 83.3%, while cancelled orders accounted for 16.7% of total orders." },
-        { eyebrow: "POST-PURCHASE SIGNAL", headline: "103 Good Review · 35 Buy Again", detail: "Good Reviews represented 19.4% and Buy Again represented 6.6% of completed orders." },
+        { eyebrow:"BIGGEST DROP-OFF", headline:`Ads → Product View · ${percentage(transition("ads-productview").dropOffRate)}`, detail:`${node("ads").value.toLocaleString("en-US")} ad impressions generated ${node("productview").value.toLocaleString("en-US")} product views, equivalent to a ${percentage(transition("ads-productview").conversionRate)} conversion rate.` },
+        { eyebrow:"ORDER QUALITY", headline:`${node("complete").value.toLocaleString("en-US")} / ${node("order").value.toLocaleString("en-US")} completed orders`, detail:`The completion rate reached ${percentage(transition("order-complete").conversionRate)}, while cancelled orders accounted for ${percentage(transition("order-cancel").conversionRate)} of total orders.` },
+        { eyebrow:"POST-PURCHASE SIGNAL", headline:`${node("goodreview").value.toLocaleString("en-US")} Good Review · ${node("buyagain").value.toLocaleString("en-US")} Buy Again`, detail:`Good Reviews represented ${percentage(transition("complete-goodreview").conversionRate)} and Buy Again represented ${percentage(transition("complete-buyagain").conversionRate)} of completed orders.` },
       ],
     },
     recommendations: raw.recommendations.map((row) => ({ ...row, evidence: row.evidence.map((evidence) => ({ ...evidence })) })),

@@ -6,7 +6,7 @@ const unavailableComparison = {
 } as const;
 
 /**
- * Prototype values sourced from the Overview sample in DATA_SPEC.md.
+ * Exact local extraction from `mapping data.xlsx`, Customer journey!A3:F4.
  * Comparison-period values are intentionally null because the source does not
  * provide a supported comparison dataset.
  */

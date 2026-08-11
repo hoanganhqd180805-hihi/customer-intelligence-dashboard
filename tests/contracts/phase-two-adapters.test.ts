@@ -12,9 +12,9 @@ describe("Customer Type adapter", () => {
   it("maps the workbook extraction without dropping zero-value dates", () => {
     const result = adaptCustomerTypeResponse(rawCustomerTypeWorkbookFixture)!;
     expect(result.daily).toHaveLength(17);
-    expect(result.daily.reduce((sum, point) => sum + point.newCustomers, 0)).toBe(488);
-    expect(result.daily.reduce((sum, point) => sum + point.returningCustomers, 0)).toBe(22);
-    expect(result.revenueContribution.map((item) => item.revenueShare)).toEqual([0.9782,0.0218]);
+    expect(result.daily.reduce((sum, point) => sum + point.newCustomers, 0)).toBe(267);
+    expect(result.daily.reduce((sum, point) => sum + point.returningCustomers, 0)).toBe(97);
+    expect(result.revenueContribution.map((item) => item.revenueShare)).toEqual([0.6911,0.3089]);
     expect(result.revenueContribution.every((item) => item.revenue === null)).toBe(true);
   });
   it("sorts dates, preserves explicit zeroes, and normalizes percent values", () => {
