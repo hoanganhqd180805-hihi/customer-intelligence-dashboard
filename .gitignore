@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js and build output
+.next/
+out/
+build/
+dist/
+
+# Test and coverage output
+coverage/
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*.tsbuildinfo
+~$*
+.cache/
+.turbo/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+:root {
+  --page: #f8f8f8;
+  --surface: #ffffff;
+  --border: #dedede;
+  --text: #111111;
+  --muted: #686868;
+  --primary: #180bd4;
+  --action: #3b82f6;
+  --cyan: #86eae9;
+  --danger: #e2504a;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--page); }
+body { margin: 0; background: var(--page); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
+button { font: inherit; }
+
+::selection { background: rgba(24, 11, 212, 0.16); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  .journey-particle { display: none; }
+}

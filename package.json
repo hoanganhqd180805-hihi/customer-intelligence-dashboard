@@ -1,0 +1,43 @@
+{
+  "name": "customer-intelligence-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "d3": "latest",
+    "d3-sankey": "latest",
+    "echarts": "latest",
+    "echarts-for-react": "latest",
+    "framer-motion": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@types/d3": "latest",
+    "@types/d3-sankey": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "latest",
+    "eslint": "9.39.2",
+    "eslint-config-next": "latest",
+    "jsdom": "latest",
+    "playwright": "latest",
+    "prettier": "latest",
+    "tailwindcss": "latest",
+    "typescript": "6.0.2",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}

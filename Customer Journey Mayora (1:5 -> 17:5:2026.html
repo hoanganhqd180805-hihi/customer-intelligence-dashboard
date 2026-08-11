@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Journey · BA3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://api.fontshare.com/v2/css?f[]=open-sauce-sans@700,600,500,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#0d00c7;
+    --primary-2:#1b00fc;
+    --blue-mid:#4a99d2;
+    --blue-light:#98dfff;
+    --cyan:#86eae9;
+    --danger:#e2504a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:#f5f6fb;
+    font-family:'Poppins',Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:40px 20px;
+  }
+  .page{max-width:1240px;margin:0 auto;}
+  h2,.display{font-family:'Open Sauce Sans','Poppins',Arial,sans-serif;font-weight:700;letter-spacing:-.01em;margin:0;}
+  .eyebrow{
+    font-family:'Open Sauce Sans','Poppins',Arial,sans-serif;font-weight:700;font-size:12px;
+    letter-spacing:.14em;text-transform:uppercase;
+    display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  }
+  .eyebrow .num{background:var(--cyan);color:#04231f;font-size:11px;padding:3px 8px;border-radius:20px;}
+  .block-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;}
+  .block-head h2{font-size:21px;}
+  .block-head .desc{font-size:13px;margin-top:4px;max-width:600px;}
+  .interaction-hint{
+    display:flex;align-items:center;gap:8px;color:#8e99be;font-size:11px;
+    border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);
+    border-radius:999px;padding:7px 11px;white-space:nowrap;
+  }
+  .interaction-hint .pulse{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px rgba(134,234,233,.8);}
+
+  .spotlight{
+    background:radial-gradient(1200px 500px at 15% -10%, rgba(74,153,210,0.18), transparent 60%),
+               radial-gradient(1000px 480px at 90% 110%, rgba(134,234,233,0.12), transparent 60%),
+               linear-gradient(180deg,#0a0f2b,#050714);
+    border-radius:24px;padding:32px;color:#eef1fb;position:relative;overflow:hidden;
+    border:1px solid #1c2350;box-shadow:0 22px 60px rgba(9,14,42,.18);
+  }
+  .spotlight .block-head .desc{color:#9aa3c9;}
+  .spotlight .eyebrow{color:var(--cyan);}
+
+  .funnel-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .funnel-strip .fitem{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:14px;transition:.2s ease;}
+  .funnel-strip .fitem:hover{border-color:rgba(134,234,233,.28);background:rgba(134,234,233,.055);transform:translateY(-1px);}
+  .funnel-strip .fitem .fval{font-family:'Open Sauce Sans','Poppins',Arial,sans-serif;font-size:20px;font-weight:700;color:var(--cyan);}
+  .funnel-strip .fitem .flabel{font-size:11px;color:#9aa3c9;margin-top:4px;}
+
+  .sankey-wrap{position:relative;border-radius:18px;overflow:hidden;}
+  #sankeySvg{width:100%;display:block;touch-action:manipulation;}
+  .selection-bar{
+    position:absolute;right:12px;top:9px;display:none;align-items:center;gap:8px;
+    font-size:10.5px;color:#c9d4f5;background:rgba(7,10,27,.86);border:1px solid rgba(134,234,233,.22);
+    backdrop-filter:blur(8px);padding:7px 9px;border-radius:10px;z-index:3;
+  }
+  .selection-bar.show{display:flex;}
+  .selection-bar button{border:0;background:transparent;color:var(--cyan);font-family:inherit;font-size:10.5px;font-weight:600;cursor:pointer;padding:0;}
+
+  .drop-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+  .drop-chip{flex:1;min-width:165px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px;font-size:11px;color:#9aa3c9;}
+  .drop-chip b{display:block;font-family:'Open Sauce Sans','Poppins',Arial,sans-serif;font-size:14px;color:#fff;margin-bottom:2px;}
+  .drop-chip.hot{border-color:rgba(226,80,74,.5);background:rgba(226,80,74,.12);}
+  .drop-chip.hot b{color:#ff8f89;}
+
+  .journey-foot{display:grid;grid-template-columns:1fr;gap:18px;margin-top:20px;}
+  .insight-box{background:rgba(134,234,233,0.08);border:1px solid rgba(134,234,233,.25);border-radius:14px;padding:16px;font-size:12.5px;color:#cfe9ff;line-height:1.65;}
+  .insight-box b{color:var(--cyan);}
+  .insight-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px;}
+  .insight-grid > div + div{border-left:1px solid rgba(255,255,255,.08);padding-left:14px;}
+  .insight-kicker{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#7d8aa8;margin-bottom:4px;}
+
+  .node-group{transition:opacity .24s ease,filter .24s ease;}
+  .node-group .node-pill{transition:opacity .24s ease,filter .24s ease,stroke-width .24s ease;}
+  .link-path{transition:opacity .25s ease,filter .25s ease;mix-blend-mode:screen;}
+  .node-group.is-active .node-pill{filter:drop-shadow(0 0 10px rgba(134,234,233,.75));}
+  .node-group.is-selected .node-ring{stroke-width:3.2;}
+
+  .tooltip{
+    position:fixed;pointer-events:none;z-index:1000;opacity:0;transform:translateY(4px);
+    background:rgba(7,10,27,.96);border:1px solid rgba(134,234,233,.22);color:#eef1fb;
+    padding:9px 11px;border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.25);
+    font-size:11px;line-height:1.5;transition:opacity .12s ease,transform .12s ease;max-width:230px;
+  }
+  .tooltip.show{opacity:1;transform:translateY(0);}
+  .tooltip strong{font-size:11.5px;color:#fff;}
+  .tooltip .muted{color:#8e99be;}
+
+  @media (max-width:980px){
+    .funnel-strip{grid-template-columns:repeat(2,1fr);}
+    .insight-grid{grid-template-columns:1fr;}
+    .insight-grid > div + div{border-left:0;border-top:1px solid rgba(255,255,255,.08);padding-left:0;padding-top:12px;}
+  }
+  @media (max-width:640px){
+    body{padding:18px 10px;}
+    .spotlight{padding:20px 14px;border-radius:18px;}
+    .interaction-hint{display:none;}
+    .funnel-strip{grid-template-columns:1fr 1fr;gap:8px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important;transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <section>
+    <div class="spotlight">
+      <div class="block-head">
+        <div>
+          <div class="eyebrow"><span class="num">07</span> CUSTOMER JOURNEY</div>
+          <h2>From ad touchpoint to post-purchase behavior</h2>
+          <div class="desc">Only touchpoints with available data are shown. Click a node to highlight the entire journey that passes through it.</div>
+        </div>
+        <div class="interaction-hint"><span class="pulse"></span> Click a node to trace the full journey</div>
+      </div>
+
+      <div class="funnel-strip">
+        <div class="fitem"><div class="fval">2.0%</div><div class="flabel">Ads → Product View</div></div>
+        <div class="fitem"><div class="fval">33.8%</div><div class="flabel">Product View → Order</div></div>
+        <div class="fitem"><div class="fval">83.3%</div><div class="flabel">Order → Complete</div></div>
+        <div class="fitem"><div class="fval">19.4%</div><div class="flabel">Complete → Good Review</div></div>
+      </div>
+
+      <div class="sankey-wrap" id="sankeyWrap">
+                <div class="selection-bar" id="selectionBar"><span id="selectionText"></span><button id="resetSelection" type="button">Reset</button></div>
+        <svg id="sankeySvg" viewBox="0 0 1820 760" preserveAspectRatio="xMidYMid meet" aria-label="Customer journey chart"></svg>
+      </div>
+
+      <div class="drop-row">
+        <div class="drop-chip hot"><b>↓98.0%</b>Ads → Product View</div>
+        <div class="drop-chip"><b>↓66.2%</b>Product View → Order</div>
+        <div class="drop-chip"><b>↓16.7%</b>Order → Complete</div>
+      </div>
+
+      <div class="journey-foot">
+        <div class="insight-box">
+          <div class="insight-grid">
+            <div>
+              <div class="insight-kicker">BIGGEST DROP-OFF</div>
+              <b>Ads → Product View · 98.0%</b><br>
+              93,760 ad impressions generated 1,880 product views, equivalent to a 2.0% conversion rate.
+            </div>
+            <div>
+              <div class="insight-kicker">ORDER QUALITY</div>
+              <b>530 / 636 completed orders</b><br>
+              The completion rate reached 83.3%, while cancelled orders accounted for 16.7% of total orders.
+            </div>
+            <div>
+              <div class="insight-kicker">POST-PURCHASE SIGNAL</div>
+              <b>103 Good Review · 35 Buy Again</b><br>
+              Good Reviews represented 19.4% and Buy Again represented 6.6% of completed orders.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+(function(){
+  const svgNS = "http://www.w3.org/2000/svg";
+  const W = 1820, H = 760;
+  const MARGIN = { top:54, bottom:28, left:150, right:145 };
+  const svg = document.getElementById("sankeySvg");
+  const tooltip = document.getElementById("tooltip");
+  const selectionBar = document.getElementById("selectionBar");
+  const selectionText = document.getElementById("selectionText");
+  const resetSelection = document.getElementById("resetSelection");
+
+  // Filtered data: nodes with zero values or unavailable data are excluded from the journey.
+  const COLUMNS = [
+    { title:"PLATFORM", nodes:[
+      { id:"shopee", label:"Shopee", value:93760, color:"#f0954a", meta:"Source platform for the available Ads data in the selected period" }
+    ]},
+    { title:"CONTENT", nodes:[
+      { id:"ads", label:"Ads", value:93760, color:"#f0724a", meta:"Impressions", metric:"93,760 impressions" }
+    ]},
+    { title:"PRODUCT VIEW", nodes:[
+      { id:"productview", label:"Product View", value:1880, color:"#98dfff", meta:"2.0% from Ads" }
+    ]},
+    { title:"ORDER", nodes:[
+      { id:"order", label:"Order", value:636, color:"#e0498f", meta:"33.8% from Product View" }
+    ]},
+    { title:"ORDER RESULT", nodes:[
+      { id:"complete", label:"Complete", value:530, color:"#86eae9", meta:"83.3% of Orders" },
+      { id:"cancel", label:"Cancel", value:106, color:"#e2504a", meta:"16.7% of Orders" }
+    ]},
+    { title:"POST-PURCHASE", nodes:[
+      { id:"goodreview", label:"Good Review", value:103, color:"#98dfff", meta:"19.4% of Completed Orders" },
+      { id:"badreview", label:"Bad Review", value:5, color:"#e2504a", meta:"0.9% of Completed Orders" },
+      { id:"buyagain", label:"Buy Again", value:35, color:"#4ade80", meta:"6.6% of Completed Orders" }
+    ]}
+  ];
+
+  const LINKS = [
+    {source:"shopee",target:"ads",value:93760,label:"100%"},
+    {source:"ads",target:"productview",value:1880,label:"2.0%"},
+    {source:"productview",target:"order",value:636,label:"33.8%"},
+    {source:"order",target:"complete",value:530,label:"83.3%"},
+    {source:"order",target:"cancel",value:106,label:"16.7%"},
+    {source:"complete",target:"goodreview",value:103,label:"19.4%"},
+    {source:"complete",target:"badreview",value:5,label:"0.9%"},
+    {source:"complete",target:"buyagain",value:35,label:"6.6%"}
+  ];
+
+  const nodeIndex = {};
+  COLUMNS.forEach((col,ci)=>col.nodes.forEach((n,ni)=>{ n.col=ci;n.idx=ni;nodeIndex[n.id]=n; }));
+  const outLinks={}, inLinks={};
+  LINKS.forEach((l,i)=>{ l.i=i;(outLinks[l.source] ||= []).push(l);(inLinks[l.target] ||= []).push(l); });
+
+  const chartW=W-MARGIN.left-MARGIN.right;
+  const chartH=H-MARGIN.top-MARGIN.bottom;
+  const colX=COLUMNS.map((_,i)=>MARGIN.left+(chartW*i)/(COLUMNS.length-1));
+
+  /*
+     PROPORTIONAL SANKEY
+     -------------------
+     Node height and ribbon thickness use the SAME GLOBAL LINEAR SCALE.
+     Therefore 1,880 is truly ~2.0% of the thickness of 93,760; 636 is ~33.8%
+     of 1,880; and the Complete/Cancel branches add up exactly to Order.
+     No log/sqrt scaling is used because it would make downstream nodes look larger than the actual values.
+  */
+  const MAX_VALUE=Math.max(...COLUMNS.flatMap(c=>c.nodes.map(n=>n.value)));
+  const MAX_BAND_H=470;                         // 93,760 -> 470px
+  const SCALE=MAX_BAND_H/MAX_VALUE;            // one scale for the entire journey
+  const TRUE_MIN_RENDER=.45;                    // only prevents extremely small SVG bands from disappearing
+  const nodeHeight=v=>Math.max(TRUE_MIN_RENDER,v*SCALE);
+
+  // Single-node columns are centered. Multi-branch columns are spaced for label readability,
+  // while node thickness remains fully proportional to the data.
+  COLUMNS.forEach(col=>{
+    const heights=col.nodes.map(n=>nodeHeight(n.value));
+    if(col.nodes.length===1){
+      const n=col.nodes[0], h=heights[0];
+      n.h=h;n.y0=MARGIN.top+(chartH-h)/2;n.y1=n.y0+h;n.cy=(n.y0+n.y1)/2;
+      return;
+    }
+    const labelGap = col.title==='POST-PURCHASE' ? 92 : 112;
+    const totalH=heights.reduce((a,b)=>a+b,0)+labelGap*(heights.length-1);
+    let y=MARGIN.top+(chartH-totalH)/2;
+    col.nodes.forEach((n,i)=>{
+      n.h=heights[i];n.y0=y;n.y1=y+n.h;n.cy=(n.y0+n.y1)/2;
+      y+=n.h+labelGap;
+    });
+  });
+
+  function allocateOnNode(links,node,mode){
+    if(!links || !links.length) return;
+    const totalBand=links.reduce((sum,l)=>sum+l.value*SCALE,0);
+    // For nodes with an unobserved remainder in the next step (for example Complete -> post-purchase),
+    // ribbons are centered within the node and the remainder stays empty instead of being enlarged.
+    let acc=node.y0+(node.h-totalBand)/2;
+    links.forEach(l=>{
+      const h=Math.max(TRUE_MIN_RENDER,l.value*SCALE);
+      const y0=acc,y1=acc+h;
+      if(mode==="out"){l._sy0=y0;l._sy1=y1;} else {l._ty0=y0;l._ty1=y1;}
+      acc+=h;
+    });
+  }
+  COLUMNS.forEach(col=>col.nodes.forEach(n=>{
+    allocateOnNode(outLinks[n.id],n,"out");
+    allocateOnNode(inLinks[n.id],n,"in");
+  }));
+
+  function fmt(v){
+    return new Intl.NumberFormat('en-US').format(v);
+  }
+  function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+
+  let defs=`<defs>
+    <filter id="glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="softGlow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+  LINKS.forEach((l,i)=>{
+    const s=nodeIndex[l.source],t=nodeIndex[l.target];
+    defs+=`<linearGradient id="grad${i}" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="${s.color}" stop-opacity="0.62"/><stop offset="100%" stop-color="${t.color}" stop-opacity="0.62"/></linearGradient>`;
+  });
+  defs+=`</defs>`;
+
+  let bgDots="";
+  const rand=(seed=>()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;})(42);
+  for(let i=0;i<58;i++){
+    const x=rand()*W,y=rand()*H,r=.6+rand()*1.1;
+    bgDots+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="#ffffff" opacity="${(.05+rand()*.18).toFixed(2)}"/>`;
+  }
+
+  let headers="";
+  COLUMNS.forEach((col,ci)=>{
+    headers+=`<text x="${colX[ci]}" y="22" text-anchor="middle" font-size="10.5" font-weight="700" letter-spacing="1.5" fill="#7d8aa8">${esc(col.title)}</text>
+      <line x1="${colX[ci]-34}" y1="31" x2="${colX[ci]+34}" y2="31" stroke="#232b52" stroke-width="1"/>`;
+  });
+
+  let ribbons="",centerlines="",linkLabels="";
+  LINKS.forEach((l,i)=>{
+    const s=nodeIndex[l.source],t=nodeIndex[l.target];
+    const x0=colX[s.col]+3,x1=colX[t.col]-3,xi=(x0+x1)/2;
+    const sy0=l._sy0,sy1=l._sy1,ty0=l._ty0,ty1=l._ty1;
+    const d=`M${x0},${sy0} C${xi},${sy0} ${xi},${ty0} ${x1},${ty0} L${x1},${ty1} C${xi},${ty1} ${xi},${sy1} ${x0},${sy1} Z`;
+    ribbons+=`<path class="link-path" data-link-index="${i}" data-source="${s.id}" data-target="${t.id}" d="${d}" fill="url(#grad${i})" opacity="0.48"/>`;
+    const scy=(sy0+sy1)/2,tcy=(ty0+ty1)/2;
+    centerlines+=`<path id="cl${i}" d="M${x0},${scy} C${xi},${scy} ${xi},${tcy} ${x1},${tcy}" fill="none" stroke="none"/>`;
+    // Label only conversion links. The Shopee → Ads link is an attribution bridge, so 100% is not repeated in the canvas.
+    if(i>0){
+      const lx=(x0+x1)/2,ly=(scy+tcy)/2-8;
+      linkLabels+=`<g class="link-label" data-link-index="${i}" opacity=".82"><rect x="${lx-24}" y="${ly-11}" width="48" height="18" rx="9" fill="#080c20" stroke="#27305a" stroke-width="1"/><text x="${lx}" y="${ly+2}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#c8d2f1">${esc(l.label)}</text></g>`;
+    }
+  });
+
+  let nodesSvg="";
+  COLUMNS.forEach(col=>col.nodes.forEach(n=>{
+    const x=colX[n.col],monogram=n.label.trim()[0].toUpperCase();
+    nodesSvg+=`<g class="node-group" data-id="${n.id}" tabindex="0" role="button" aria-label="${esc(n.label)} ${fmt(n.value)}" style="cursor:pointer;">
+      <rect x="${x-31}" y="${n.cy-23}" width="118" height="46" rx="10" fill="transparent" pointer-events="all"/>
+      <rect class="node-pill" x="${x-3}" y="${n.y0}" width="6" height="${n.h}" rx="3" fill="${n.color}" style="filter:drop-shadow(0 0 6px ${n.color});"/>
+      <circle class="node-ring" cx="${x-22}" cy="${n.cy}" r="11" fill="#0a1024" stroke="${n.color}" stroke-width="2" filter="url(#glow)"/>
+      <text x="${x-22}" y="${n.cy+4}" text-anchor="middle" font-size="10" font-weight="700" fill="${n.color}">${esc(monogram)}</text>
+      <text x="${x+12}" y="${n.cy-3}" font-size="11.5" font-weight="700" fill="#eef1f8">${esc(n.label)}</text>
+      <text x="${x+12}" y="${n.cy+13}" font-size="10" fill="#7d8aa8">${fmt(n.value)}</text>
+    </g>`;
+  }));
+
+  svg.innerHTML=defs+`<g>${bgDots}</g><g>${headers}</g><g class="ribbons">${ribbons}</g><g class="link-labels">${linkLabels}</g><g style="visibility:hidden">${centerlines}</g><g class="nodes">${nodesSvg}</g>`;
+
+  const particleLayer=document.createElementNS(svgNS,"g");
+  particleLayer.setAttribute("class","particles");
+  svg.appendChild(particleLayer);
+  const particles=[];
+  LINKS.forEach((l,i)=>{
+    const path=document.getElementById("cl"+i),len=path.getTotalLength(),s=nodeIndex[l.source];
+    const count=Math.max(2,Math.min(6,Math.round(Math.log10(l.value+1)*1.35)));
+    for(let k=0;k<count;k++){
+      const dot=document.createElementNS(svgNS,"circle");
+      dot.setAttribute("r",i===0?"1.9":"2.15");
+      dot.setAttribute("fill",s.color);
+      dot.setAttribute("data-link-index",String(i));
+      dot.style.filter='drop-shadow(0 0 3px '+s.color+')';
+      particleLayer.appendChild(dot);
+      particles.push({path,len,el:dot,phase:k/count+Math.random()*.15,speed:.00014+Math.random()*.00005});
+    }
+  });
+
+  let last=performance.now();
+  function tick(now){
+    const dt=now-last;last=now;
+    particles.forEach(p=>{
+      p.phase+=dt*p.speed;if(p.phase>1)p.phase-=1;
+      const pt=p.path.getPointAtLength(p.phase*p.len);
+      p.el.setAttribute("cx",pt.x);p.el.setAttribute("cy",pt.y);
+      const edge=Math.min(p.phase,1-p.phase)*8;
+      p.el.style.opacity=Math.min(1,edge).toFixed(2);
+    });
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  const allRibbons=[...svg.querySelectorAll('.link-path')];
+  const allNodes=[...svg.querySelectorAll('.node-group')];
+  const allParticles=[...particleLayer.querySelectorAll('circle')];
+  const allLabels=[...svg.querySelectorAll('.link-label')];
+  let selectedId=null;
+
+  function upstream(id,setNodes,setLinks){
+    (inLinks[id]||[]).forEach(l=>{
+      setLinks.add(l.i);setNodes.add(l.source);
+      upstream(l.source,setNodes,setLinks);
+    });
+  }
+  function downstream(id,setNodes,setLinks){
+    (outLinks[id]||[]).forEach(l=>{
+      setLinks.add(l.i);setNodes.add(l.target);
+      downstream(l.target,setNodes,setLinks);
+    });
+  }
+  function fullPath(id){
+    const nodes=new Set([id]),links=new Set();
+    upstream(id,nodes,links);downstream(id,nodes,links);
+    return {nodes,links};
+  }
+
+  function applyFocus(id,persistent=false){
+    const {nodes,links}=fullPath(id);
+    allNodes.forEach(g=>{
+      const hit=nodes.has(g.dataset.id);
+      g.style.opacity=hit?'1':'0.14';
+      g.classList.toggle('is-active',hit);
+      g.classList.toggle('is-selected',persistent && g.dataset.id===id);
+    });
+    allRibbons.forEach((r,i)=>{
+      const hit=links.has(i);
+      r.style.opacity=hit?'0.92':'0.035';
+      r.style.filter=hit?'url(#softGlow)':'none';
+    });
+    allParticles.forEach(p=>{
+      const hit=links.has(Number(p.dataset.linkIndex));
+      p.style.display=hit?'':'none';
+    });
+    allLabels.forEach(l=>{
+      const hit=links.has(Number(l.dataset.linkIndex));
+      l.style.opacity=hit?'1':'0.09';
+    });
+  }
+
+  function clearFocus(){
+    allNodes.forEach(g=>{g.style.opacity='1';g.classList.remove('is-active','is-selected');});
+    allRibbons.forEach(r=>{r.style.opacity='0.48';r.style.filter='none';});
+    allParticles.forEach(p=>p.style.display='');
+    allLabels.forEach(l=>l.style.opacity='.82');
+  }
+
+  function setSelected(id){
+    selectedId=id;
+    applyFocus(id,true);
+    selectionText.textContent='Showing the full journey through: '+nodeIndex[id].label;
+    selectionBar.classList.add('show');
+  }
+  function reset(){selectedId=null;clearFocus();selectionBar.classList.remove('show');}
+
+  function showTooltip(e,id){
+    const n=nodeIndex[id];
+    tooltip.innerHTML=`<strong>${esc(n.label)}</strong><br><span>${fmt(n.value)}</span>${n.meta?`<br><span class="muted">${esc(n.meta)}</span>`:''}`;
+    tooltip.classList.add('show');
+    moveTooltip(e);
+  }
+  function moveTooltip(e){
+    const pad=14,w=tooltip.offsetWidth||220,h=tooltip.offsetHeight||70;
+    let x=e.clientX+14,y=e.clientY+14;
+    if(x+w+pad>window.innerWidth)x=e.clientX-w-14;
+    if(y+h+pad>window.innerHeight)y=e.clientY-h-14;
+    tooltip.style.left=x+'px';tooltip.style.top=y+'px';
+  }
+  function hideTooltip(){tooltip.classList.remove('show');}
+
+  allNodes.forEach(g=>{
+    const id=g.dataset.id;
+    g.addEventListener('mouseenter',e=>{showTooltip(e,id);if(!selectedId)applyFocus(id,false);});
+    g.addEventListener('mousemove',moveTooltip);
+    g.addEventListener('mouseleave',()=>{hideTooltip();if(!selectedId)clearFocus();});
+    g.addEventListener('click',e=>{e.stopPropagation();setSelected(id);});
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelected(id);}});
+  });
+  svg.addEventListener('click',e=>{if(e.target===svg || !e.target.closest('.node-group')) reset();});
+  resetSelection.addEventListener('click',e=>{e.stopPropagation();reset();});
+})();
+</script>
+</body>
+</html>
