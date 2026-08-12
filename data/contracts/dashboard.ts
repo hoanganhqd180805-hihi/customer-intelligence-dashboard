@@ -63,8 +63,44 @@ export interface JourneySummaryCard { value: string; label: string }
 export interface JourneyDropOffCard { value: string; label: string; emphasized: boolean }
 export interface JourneyInsight { eyebrow: string; headline: string; detail: string }
 
+export type ChannelPerformanceStatus = "not_activated" | "active_no_result" | "low_efficiency" | "healthy";
+export interface ChannelPerformance {
+  id: string;
+  channel: string;
+  activity: number;
+  productViews: number;
+  conversionRate: number | null;
+  benchmark: number | null;
+  status: ChannelPerformanceStatus;
+  activeContentCount?: number;
+  totalContentCount?: number;
+}
+export interface ChannelPerformanceDataset {
+  benchmark: number | null;
+  channels: ChannelPerformance[];
+  platformBenchmark: number | null;
+  platforms: ChannelPerformance[];
+  summary: { tracked: number; needsAttention: number; notActivated: number; healthy: number };
+}
+
+export interface CustomerSegmentMetric {
+  id: string;
+  segment: string;
+  customerCount: number;
+  customerShare: number;
+  revenue: number;
+  revenueShare: number;
+  color: string;
+}
+export interface CustomerSegmentationDataset {
+  segments: CustomerSegmentMetric[];
+  totalCustomers: number;
+  totalRevenue: number;
+  insight: string;
+}
+
 export interface RecommendationEvidence { metric: string; value: string; relationship: string }
-export interface RecommendationCardData { id: string; category: string; status: string; priority: number; severity: "high" | "medium"; title: string; description: string; reason: string; evidence: RecommendationEvidence[] }
+export interface RecommendationCardData { id: string; category: string; status: string; priority: number; severity: "high" | "medium" | "low"; signal: string; title: string; action: string; relationship: string; rationale: string; description: string; reason: string; evidence: RecommendationEvidence[] }
 
 export interface CustomerTypesDataset {
   availability: DataAvailability;

@@ -14,7 +14,7 @@ export interface RawProductRow { rank: number; product_type: ProductType; item_i
 export interface RawProductPairRow { rank: number; item_1_id: string; item_1_name: string; item_2_id: string; item_2_name: string; orders_bought_together: number }
 export interface RawJourneyNodeRow { id: string; stage: string; label: string; value: number; color: string; metadata: string }
 export interface RawJourneyLinkRow { id: string; source: string; target: string; value: number; label: string }
-export interface RawRecommendationRow { id: string; category: string; status: string; priority: number; severity: "high" | "medium"; title: string; description: string; reason: string; evidence: { metric: string; value: string; relationship: string }[] }
+export interface RawRecommendationRow { id: string; category: string; status: string; priority: number; severity: "high" | "medium" | "low"; signal:string; title: string; action:string; relationship:string; rationale:string; description: string; reason: string; evidence: { metric: string; value: string; relationship: string }[] }
 
 export interface RawDashboardResponse {
   overview: RawOverviewResponse;

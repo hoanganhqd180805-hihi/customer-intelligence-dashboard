@@ -1,7 +1,5 @@
-import type { ProductPairRow, ProductPerformanceRow, PurchaseTimeSlotTotal, RecommendationData, ShoppingCompositionMetric, Weekday, WeekdayOrderTotal } from "@/data/contracts/dashboard";
-import { rawCustomerTypeWorkbookFixture } from "./customer-type-workbook.fixture";
-import { rawOverviewApiFixture } from "./overview-api.fixture";
-import { rawCancellationWorkbookFixture } from "./section02-workbook.fixture";
+import type { ProductPairRow, ProductPerformanceRow, PurchaseTimeSlotTotal, ShoppingCompositionMetric, Weekday, WeekdayOrderTotal } from "@/data/contracts/dashboard";
+export { recommendations } from "@/data/recommendations/recommendation-engine";
 
 export const weekdays: Weekday[] = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"];
 export const timeSlots = ["00:00 - 05:59", "06:00 - 08:59", "09:00 - 11:59", "12:00 - 14:59", "15:00 - 17:59", "18:00 - 23:59"];
@@ -44,22 +42,4 @@ export const productPairs: ProductPairRow[] = [
   { rank:3,item1:{id:"26580532173",name:"BÁNH QUY SỮA MỚI MAYORA D-MAXX MARIE - HỘP GIẤY 308G (14 GÓI X 22G)"},item2:{id:"42801105610",name:"BÁNH QUY BƠ & CACAO MAYORA DANISA ABBRACCI HỘP 168G"},ordersBoughtTogether:2 },
   { rank:4,item1:{id:"15284234921",name:"Bánh Xốp Mayora Superstar Triple Choco Hộp 150G"},item2:{id:"24616846046",name:"Bánh Xốp Mayora Wafello Chocolate 210G"},ordersBoughtTogether:2 },
   { rank:5,item1:{id:"24956187823",name:"BÁNH QUY BƠ MAYORA DANISA 200G"},item2:{id:"42801105610",name:"BÁNH QUY BƠ & CACAO MAYORA DANISA ABBRACCI HỘP 168G"},ordersBoughtTogether:2 },
-];
-
-const requiredMetric = (value:number|null,name:string) => {
-  if(value==null) throw new Error(`Missing refreshed workbook metric: ${name}`);
-  return value;
-};
-const repeatRate = requiredMetric(rawOverviewApiFixture.repeat_customer_rate,"repeat customer rate") * 100;
-const cancellationRate = requiredMetric(rawOverviewApiFixture.cancellation_rate,"cancellation rate") * 100;
-const newCustomerRevenueShare = rawCustomerTypeWorkbookFixture.revenue_contribution?.find((row) => row.customer_type === "new")?.revenue_contribution ?? 0;
-const totalLostRevenue = rawCancellationWorkbookFixture.total_lost_revenue;
-const comboComposition = shoppingComposition.find((row) => row.type === "Combo")!;
-const compactEvidence = new Intl.NumberFormat("en", { notation:"compact", maximumFractionDigits:2 });
-
-export const recommendations: RecommendationData[] = [
-  {id:"retention",category:"Giữ chân",status:"Ưu tiên xử lý",priority:92,severity:"high",title:"Tăng trọng tâm vào khả năng giữ chân khách hàng",description:"Ưu tiên cải thiện tỷ lệ mua lại của nhóm khách mới.",reason:"The refreshed workbook combines a high repeat-customer rate with revenue concentrated in customers classified as new.",evidence:[{metric:"Repeat customer rate",value:`${repeatRate.toFixed(2)}%`,relationship:"Customers with ≥2 valid orders / purchasing customers"},{metric:"New-customer revenue contribution",value:`${newCustomerRevenueShare.toFixed(2)}%`,relationship:"Workbook revenue contribution for customers classified as new"}]},
-  {id:"conversion",category:"Conversion",status:"Ưu tiên xử lý",priority:90,severity:"high",title:"Tập trung cải thiện Ads → Product View",description:"Đây là điểm rơi lớn nhất trong Customer Journey mẫu.",reason:"Mock Journey transition shows the largest drop-off before product view.",evidence:[{metric:"Ads → Product View",value:"2.0%",relationship:"1,880 product views from 93,760 ad impressions"},{metric:"Drop-off",value:"98.0%",relationship:"Largest mock transition loss"}]},
-  {id:"combo",category:"Danh mục",status:"Theo dõi & mở rộng",priority:81,severity:"medium",title:"Mở rộng nhóm Combo đang tạo hiệu quả tốt",description:"Ưu tiên các nhóm Combo có tỷ lệ đơn và đóng góp doanh thu tích cực.",reason:"Combo revenue share exceeds its order share in the refreshed workbook.",evidence:[{metric:"Combo order share",value:`${(comboComposition.orderShare*100).toFixed(2)}%`,relationship:`${comboComposition.orderCount} of ${shoppingComposition.reduce((sum,row)=>sum+row.orderCount,0)} classified orders`},{metric:"Combo revenue share",value:`${(comboComposition.revenueShare*100).toFixed(2)}%`,relationship:"Revenue share is higher than order share"}]},
-  {id:"cancel",category:"Vận hành",status:"Theo dõi sát",priority:77,severity:"medium",title:"Giảm thất thoát từ các nhóm đơn huỷ giá trị cao",description:"Theo dõi Lost Revenue cùng các nguyên nhân huỷ chính.",reason:"Cancellation reasons account for material lost revenue in the refreshed workbook.",evidence:[{metric:"Cancellation rate",value:`${cancellationRate.toFixed(2)}%`,relationship:"Cancelled deduplicated orders / created orders"},{metric:"Lost revenue",value:compactEvidence.format(totalLostRevenue),relationship:"Sum of workbook cancellation-reason revenue"}]},
 ];
