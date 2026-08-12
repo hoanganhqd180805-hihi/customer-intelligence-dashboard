@@ -12,19 +12,19 @@ const unavailableComparison = {
  */
 export const overviewMockData: OverviewMetrics = {
   totalCustomers: {
-    label: "Tổng số khách hàng",
+    label: "Total Customers",
     value: 488,
     unit: "count",
     comparison: unavailableComparison,
   },
   totalOrders: {
-    label: "Tổng đơn hàng",
+    label: "Total Orders",
     value: 530,
     unit: "count",
     comparison: unavailableComparison,
   },
   revenue: {
-    label: "Doanh thu",
+    label: "Revenue",
     value: 57_671_416,
     unit: "amount",
     comparison: unavailableComparison,
@@ -36,13 +36,13 @@ export const overviewMockData: OverviewMetrics = {
     comparison: unavailableComparison,
   },
   repeatCustomerRate: {
-    label: "Tỷ lệ quay lại",
+    label: "Repeat Customer Rate",
     value: 0.7738,
     unit: "ratio",
     comparison: unavailableComparison,
   },
   cancellationRate: {
-    label: "Tỷ lệ huỷ",
+    label: "Cancellation Rate",
     value: 0.1667,
     unit: "ratio",
     comparison: unavailableComparison,

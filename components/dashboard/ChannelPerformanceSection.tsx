@@ -12,10 +12,10 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 type AnalysisMode = "content" | "platform";
-const numberFormat = new Intl.NumberFormat("vi-VN", {
+const numberFormat = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
-const percentFormat = new Intl.NumberFormat("vi-VN", {
+const percentFormat = new Intl.NumberFormat("en-US", {
   style: "percent",
   maximumFractionDigits: 1,
 });
@@ -37,31 +37,31 @@ const statusMeta: Record<
   { label: string; color: string; background: string; recommendation: string }
 > = {
   active_no_result: {
-    label: "Đã khai thác · Chưa tạo kết quả",
+    label: "Active · No Results",
     color: "#d9564f",
     background: "#fff4f2",
     recommendation:
-      "Kiểm tra khả năng đo lường và đường dẫn chuyển đổi trước khi tiếp tục tăng traffic.",
+      "Check measurement and conversion paths before increasing traffic.",
   },
   low_efficiency: {
-    label: "Hiệu quả thấp",
+    label: "Low Performance",
     color: "#c87816",
     background: "#fff8e8",
     recommendation:
-      "Tối ưu creative, CTA, placement hoặc targeting trước khi tiếp tục scale traffic.",
+      "Optimize creative, CTA, placement, or targeting before scaling traffic.",
   },
   not_activated: {
-    label: "Chưa khai thác",
+    label: "Not Activated",
     color: "#737b89",
     background: "#f4f5f7",
     recommendation:
-      "Cân nhắc thử nghiệm nếu phù hợp với chiến lược thu hút khách hàng.",
+      "Consider testing if it aligns with the customer-acquisition strategy.",
   },
   healthy: {
-    label: "Hoạt động tốt",
+    label: "Performing Well",
     color: "#14866d",
     background: "#edf9f5",
-    recommendation: "Duy trì hiệu suất và cân nhắc mở rộng có kiểm soát.",
+    recommendation: "Maintain performance and consider controlled expansion.",
   },
 };
 
@@ -69,15 +69,15 @@ function DiagnosticDetail({ row }: { row: ChannelPerformance }) {
   const noResult = row.status === "active_no_result";
   return (
     <div className="border-t border-[#e8ebf1] bg-[#fafbfd] px-3 py-2 text-[11px] leading-[1.45] text-[#596273]">
-      <b className="text-[10px] tracking-[.07em] text-[#7c8492]">TÍN HIỆU</b>
+      <b className="text-[10px] tracking-[.07em] text-[#7c8492]">SIGNAL</b>
       <p className="mt-0.5">
         {noResult
-          ? "Có activity nhưng chưa tạo Product View."
-          : "CVR thấp hơn median của nhóm đang hoạt động."}
+          ? "Activity exists but has not generated Product Views."
+          : "CVR is below the median for active channels."}
       </p>
       <p className="mt-1">
         <b className="text-[10px] tracking-[.07em] text-[#7c8492]">
-          NÊN KIỂM TRA
+          CHECK NEXT
         </b>{" "}
         · Creative · CTA · Placement · Targeting
       </p>
@@ -168,7 +168,8 @@ function PerformanceRow({
           </span>
           {mode === "platform" && (
             <span>
-              {row.activeContentCount}/{row.totalContentCount} Content hoạt động
+              {row.activeContentCount}/{row.totalContentCount} active Content
+              types
             </span>
           )}
         </div>
@@ -201,35 +202,35 @@ export function ChannelPerformanceSection({
     <section className="flex min-w-0 flex-col min-[1050px]:h-full">
       <div className="min-[1050px]:min-h-[74px]">
         <SectionHeading
-          title="06. Hiệu quả khai thác kênh"
-          subtitle="Đánh giá mức độ khai thác và khả năng tạo chuyển đổi theo Content và nền tảng."
+          title="06. Channel Effectiveness"
+          subtitle="Evaluate channel utilization and conversion effectiveness by content and platform."
         />
       </div>
       <Card className="min-h-[420px] max-w-full flex-1 min-[1050px]:min-h-[520px]">
         <header className="px-4 pb-1.5 pt-3">
           <h3 className="text-[16px] font-semibold text-[#172033]">
-            Tình trạng khai thác
+            Channel Performance
           </h3>
           <p className="mt-0.5 text-[11.5px] text-[#747d8b]">
-            Mức độ hoạt động và hiệu quả tạo Product View
+            Activity level and effectiveness in generating Product Views
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2.5">
             <SegmentedControl
               value={mode}
               onChange={changeMode}
-              ariaLabel="Góc nhìn phân tích kênh"
+              ariaLabel="Channel analysis view"
               options={[
-                { value: "content", label: "Theo Content" },
-                { value: "platform", label: "Theo Nền tảng" },
+                { value: "content", label: "By Content" },
+                { value: "platform", label: "By Platform" },
               ]}
             />
             <span className="text-[10.5px] text-[#747d8b]">
-              {rows.length} {mode === "content" ? "Content" : "nền tảng"} ·{" "}
-              <b className="text-[#c87816]">{attention} cần chú ý</b>
+              {rows.length} {mode === "content" ? "Content Types" : "Platforms"}{" "}
+              · <b className="text-[#c87816]">{attention} Need Attention</b>
             </span>
           </div>
           <p className="mt-1.5 text-[10px] text-[#8a92a0]">
-            Median tương đối hiện tại:{" "}
+            Current Median Rate:{" "}
             <b className="text-[#536176]">
               {benchmark === null ? "—" : percentFormat.format(benchmark)}
             </b>

@@ -5,26 +5,198 @@ import { journeyLinks, journeyNodes } from "@/data/fixtures/journey.fixture";
 import { rawCancellationWorkbookFixture } from "@/data/fixtures/section02-workbook.fixture";
 import { rawOverviewApiFixture } from "@/data/fixtures/overview-api.fixture";
 
-const percent=new Intl.NumberFormat("vi-VN",{style:"percent",maximumFractionDigits:1});
-const integer=new Intl.NumberFormat("vi-VN");
-const money=new Intl.NumberFormat("vi-VN",{notation:"compact",maximumFractionDigits:1});
-const severity=(priority:number):RecommendationData["severity"]=>priority>=85?"high":priority>=70?"medium":"low";
-const node=(label:string)=>journeyNodes.find((item)=>item.label===label)!;
-const link=(source:string,target:string)=>journeyLinks.find((item)=>item.source===node(source).id&&item.target===node(target).id)!;
-const numericRate=(source:string,target:string)=>Number.parseFloat(link(source,target).label)/100;
+const percent = new Intl.NumberFormat("en-US", {
+  style: "percent",
+  maximumFractionDigits: 1,
+});
+const integer = new Intl.NumberFormat("en-US");
+const money = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const severity = (priority: number): RecommendationData["severity"] =>
+  priority >= 85 ? "high" : priority >= 70 ? "medium" : "low";
+const node = (label: string) =>
+  journeyNodes.find((item) => item.label === label)!;
+const link = (source: string, target: string) =>
+  journeyLinks.find(
+    (item) =>
+      item.source === node(source).id && item.target === node(target).id,
+  )!;
+const numericRate = (source: string, target: string) =>
+  Number.parseFloat(link(source, target).label) / 100;
+const segmentName = (value: string) =>
+  ({
+    "Ngủ đông": "Dormant",
+    "Khách mới": "New Customers",
+    "Khách thường": "Regular Customers",
+    "Tiềm năng": "Potential",
+    "Nguy cơ rời bỏ": "At Risk",
+    VIP: "VIP",
+  })[value] ?? value;
 
-export function generateRecommendations():RecommendationData[]{
-  const ads=channelPerformanceDataset.channels.find((row)=>row.channel==="Ads")!;
-  const highValueSegment=[...customerSegmentationDataset.segments].sort((a,b)=>(b.revenueShare-b.customerShare)-(a.revenueShare-a.customerShare))[0];
-  const topCancellation=[...rawCancellationWorkbookFixture.reasons].sort((a,b)=>b.lost_revenue-a.lost_revenue)[0];
-  const adsJourneyRate=numericRate("Ads","Product View"),adsDrop=1-adsJourneyRate,cancellationRate=rawOverviewApiFixture.cancellation_rate??0;
-  const items:RecommendationData[]=[
-    {id:"journey-conversion",category:"Chuyển đổi",status:"Ưu tiên xử lý",priority:Math.round(85+adsDrop*10),severity:"high",signal:`Ads tạo ${integer.format(link("Ads","Product View").value)} Product View nhưng tỷ lệ chuyển tiếp chỉ đạt ${percent.format(adsJourneyRate)}.`,title:"Giảm ma sát trước bước Product View",action:"Rà soát product link, CTA, offer và trải nghiệm đích của Ads trước khi tiếp tục tăng traffic.",relationship:`Ads → Product View thất thoát ${percent.format(adsDrop)} lượng activity theo Rate trong Journey.`,rationale:"Đây là điểm rơi lớn nhất trong các chuyển tiếp chính, nên cải thiện bước này có thể mở rộng đầu vào cho các bước conversion phía sau.",description:"Rà soát product link, CTA, offer và trải nghiệm đích của Ads trước khi tiếp tục tăng traffic.",reason:"Ads → Product View là điểm rơi lớn nhất trong Customer Journey hiện tại.",evidence:[{metric:"Ads activity",value:integer.format(ads.activity),relationship:"Activity Marketplace phân bổ vào Ads"},{metric:"Product View",value:integer.format(ads.productViews),relationship:"Kết quả downstream của Ads"},{metric:"Ads → Product View",value:percent.format(adsJourneyRate),relationship:"Rate được cung cấp trong workbook Sankey"}]},
-    {id:"channel-efficiency",category:"Khai thác kênh",status:"Ưu tiên tối ưu",priority:88,severity:"high",signal:`Ads có Activity lớn nhất nhưng CVR ${percent.format(ads.conversionRate!)} thấp hơn median Content ${percent.format(ads.benchmark!)}.`,title:"Tối ưu Ads trước khi mở rộng lưu lượng",action:"Kiểm tra tracking, product link, CTA, placement, targeting và độ liên quan nội dung theo từng nguồn Marketplace.",relationship:`${integer.format(ads.activity)} Activity tạo ${integer.format(ads.productViews)} Product View; hiệu suất thấp hơn benchmark tương đối ${percent.format(ads.benchmark!)}.`,rationale:"Kênh có quy mô lớn nhưng hiệu suất dưới median tạo ra cơ hội tối ưu có tác động rộng mà chưa cần kết luận nguyên nhân cụ thể.",description:"Kiểm tra tracking, product link, CTA, placement, targeting và độ liên quan nội dung theo từng nguồn Marketplace.",reason:"Ads có activity cao nhất trong nhóm Content nhưng CVR thấp hơn benchmark hiện tại.",evidence:[{metric:"Activity",value:integer.format(ads.activity),relationship:"Tổng Marketplace → Ads"},{metric:"Product View",value:integer.format(ads.productViews),relationship:"Ads → Product View"},{metric:"CVR / Median",value:`${percent.format(ads.conversionRate!)} / ${percent.format(ads.benchmark!)}`,relationship:"So sánh với median Content đang hoạt động"}]},
-    {id:"cancellation-impact",category:"Vận hành",status:"Theo dõi sát",priority:82,severity:"medium",signal:`Tỷ lệ huỷ ${percent.format(cancellationRate)} đang gắn với ${money.format(rawCancellationWorkbookFixture.total_lost_revenue)} ₫ doanh thu thất thoát.`,title:"Ưu tiên giảm nguyên nhân huỷ có tác động tiền tệ lớn nhất",action:`Phân tích quy trình chỉnh sửa đơn và bổ sung hướng dẫn đổi màu, kích thước, địa chỉ hoặc voucher trước khi khách huỷ.`,relationship:`“${topCancellation.reason}” gây ${topCancellation.cancelled_orders} đơn huỷ và ${money.format(topCancellation.lost_revenue)} ₫ lost revenue.`,rationale:"Ưu tiên theo giá trị thất thoát giúp tập trung xử lý tác động tài chính thay vì chỉ dựa trên số đơn huỷ.",description:"Phân tích quy trình chỉnh sửa đơn và bổ sung hướng dẫn trước khi khách huỷ.",reason:"Nguyên nhân đứng đầu đồng thời có số đơn và lost revenue cao nhất.",evidence:[{metric:"Cancellation rate",value:percent.format(cancellationRate),relationship:"Đơn huỷ / tổng đơn được tạo"},{metric:"Lost revenue",value:`${money.format(rawCancellationWorkbookFixture.total_lost_revenue)} ₫`,relationship:"Tổng doanh thu của các nhóm lý do huỷ"},{metric:"Top reason",value:`${money.format(topCancellation.lost_revenue)} ₫`,relationship:topCancellation.reason}]},
-    {id:"segment-value",category:"Phân khúc",status:"Cơ hội giá trị",priority:76,severity:"medium",signal:`${highValueSegment.segment} chiếm ${percent.format(highValueSegment.customerShare)} khách hàng nhưng đóng góp ${percent.format(highValueSegment.revenueShare)} doanh thu.`,title:`Tăng chuyển hóa giá trị từ nhóm ${highValueSegment.segment}`,action:"Thiết kế nhắc mua lại, bundle hoặc ưu đãi theo lần mua tiếp theo và đo thay đổi doanh thu trên khách sau chiến dịch.",relationship:`Revenue share cao hơn customer share ${(highValueSegment.revenueShare-highValueSegment.customerShare)*100<1?"":`${((highValueSegment.revenueShare-highValueSegment.customerShare)*100).toFixed(1)} điểm %`}.`,rationale:"Nhóm có quy mô nhỏ nhưng tỷ trọng doanh thu tương đối cao là tín hiệu phù hợp để thử nghiệm giữ chân và upsell có kiểm soát.",description:"Thiết kế nhắc mua lại, bundle hoặc ưu đãi theo lần mua tiếp theo.",reason:"Tỷ trọng doanh thu của phân khúc vượt tỷ trọng khách hàng.",evidence:[{metric:"Số khách",value:integer.format(highValueSegment.customerCount),relationship:percent.format(highValueSegment.customerShare)},{metric:"Doanh thu",value:`${money.format(highValueSegment.revenue)} ₫`,relationship:percent.format(highValueSegment.revenueShare)},{metric:"Chênh lệch tỷ trọng",value:`${((highValueSegment.revenueShare-highValueSegment.customerShare)*100).toFixed(1)} điểm %`,relationship:"Revenue share trừ customer share"}]},
+export function generateRecommendations(): RecommendationData[] {
+  const ads = channelPerformanceDataset.channels.find(
+    (row) => row.channel === "Ads",
+  )!;
+  const highValueSegment = [...customerSegmentationDataset.segments].sort(
+    (a, b) =>
+      b.revenueShare - b.customerShare - (a.revenueShare - a.customerShare),
+  )[0];
+  const displaySegment = segmentName(highValueSegment.segment);
+  const topCancellation = [...rawCancellationWorkbookFixture.reasons].sort(
+    (a, b) => b.lost_revenue - a.lost_revenue,
+  )[0];
+  const adsJourneyRate = numericRate("Ads", "Product View");
+  const adsDrop = 1 - adsJourneyRate;
+  const cancellationRate = rawOverviewApiFixture.cancellation_rate ?? 0;
+  const shareGap =
+    (highValueSegment.revenueShare - highValueSegment.customerShare) * 100;
+  const items: RecommendationData[] = [
+    {
+      id: "journey-conversion",
+      category: "Conversion",
+      status: "Action Required",
+      priority: Math.round(85 + adsDrop * 10),
+      severity: "high",
+      signal: `Ads generate ${integer.format(link("Ads", "Product View").value)} Product Views, but the transition rate is only ${percent.format(adsJourneyRate)}.`,
+      title: "Reduce Friction Before Product View",
+      action:
+        "Review product links, CTAs, offers, and the Ads landing experience before increasing traffic.",
+      relationship: `Ads → Product View loses ${percent.format(adsDrop)} of activity based on the Journey rate.`,
+      rationale:
+        "This is the largest drop-off among the primary transitions, so improving it can expand volume throughout downstream conversion stages.",
+      description:
+        "Review product links, CTAs, offers, and the Ads landing experience before increasing traffic.",
+      reason:
+        "Ads → Product View is the largest current Customer Journey drop-off.",
+      evidence: [
+        {
+          metric: "Ads Activity",
+          value: integer.format(ads.activity),
+          relationship: "Marketplace activity allocated to Ads",
+        },
+        {
+          metric: "Product Views",
+          value: integer.format(ads.productViews),
+          relationship: "Downstream result from Ads",
+        },
+        {
+          metric: "Ads → Product View",
+          value: percent.format(adsJourneyRate),
+          relationship: "Rate supplied by the Sankey workbook",
+        },
+      ],
+    },
+    {
+      id: "channel-efficiency",
+      category: "Channel Effectiveness",
+      status: "Optimization Priority",
+      priority: 88,
+      severity: "high",
+      signal: `Ads have the highest activity, but their ${percent.format(ads.conversionRate!)} CVR is below the ${percent.format(ads.benchmark!)} Content median.`,
+      title: "Optimize Ads Before Scaling Traffic",
+      action:
+        "Check tracking, product links, CTAs, placements, targeting, and content relevance for each Marketplace source.",
+      relationship: `${integer.format(ads.activity)} activities generate ${integer.format(ads.productViews)} Product Views; performance is below the ${percent.format(ads.benchmark!)} relative benchmark.`,
+      rationale:
+        "A high-volume channel performing below the median offers broad optimization potential without requiring assumptions about the underlying cause.",
+      description:
+        "Check tracking, product links, CTAs, placements, targeting, and content relevance for each Marketplace source.",
+      reason:
+        "Ads have the highest Content activity but a CVR below the current benchmark.",
+      evidence: [
+        {
+          metric: "Activity",
+          value: integer.format(ads.activity),
+          relationship: "Total Marketplace → Ads",
+        },
+        {
+          metric: "Product Views",
+          value: integer.format(ads.productViews),
+          relationship: "Ads → Product View",
+        },
+        {
+          metric: "CVR / Median",
+          value: `${percent.format(ads.conversionRate!)} / ${percent.format(ads.benchmark!)}`,
+          relationship: "Comparison with the median for active Content",
+        },
+      ],
+    },
+    {
+      id: "cancellation-impact",
+      category: "Operations",
+      status: "Monitor Closely",
+      priority: 82,
+      severity: "medium",
+      signal: `The ${percent.format(cancellationRate)} cancellation rate is associated with ${money.format(rawCancellationWorkbookFixture.total_lost_revenue)} ₫ in revenue loss.`,
+      title: "Prioritize the Highest-Impact Cancellation Reason",
+      action:
+        "Review the order-modification process and provide guidance for color, size, address, or voucher changes before customers cancel.",
+      relationship: `“${topCancellation.reason}” causes ${topCancellation.cancelled_orders} cancellations and ${money.format(topCancellation.lost_revenue)} ₫ in revenue loss.`,
+      rationale:
+        "Prioritizing revenue loss focuses remediation on financial impact rather than cancellation volume alone.",
+      description:
+        "Review the order-modification process and provide guidance before customers cancel.",
+      reason:
+        "The leading reason has both the highest cancellation count and revenue loss.",
+      evidence: [
+        {
+          metric: "Cancellation Rate",
+          value: percent.format(cancellationRate),
+          relationship: "Cancelled orders / total created orders",
+        },
+        {
+          metric: "Revenue Loss",
+          value: `${money.format(rawCancellationWorkbookFixture.total_lost_revenue)} ₫`,
+          relationship: "Total revenue across cancellation-reason groups",
+        },
+        {
+          metric: "Top Reason",
+          value: `${money.format(topCancellation.lost_revenue)} ₫`,
+          relationship: topCancellation.reason,
+        },
+      ],
+    },
+    {
+      id: "segment-value",
+      category: "Customer Segmentation",
+      status: "Value Opportunity",
+      priority: 76,
+      severity: "medium",
+      signal: `${displaySegment} customers represent ${percent.format(highValueSegment.customerShare)} of customers but contribute ${percent.format(highValueSegment.revenueShare)} of revenue.`,
+      title: `Increase Value Conversion from ${displaySegment}`,
+      action:
+        "Test repurchase reminders, bundles, or next-purchase offers and measure subsequent revenue per customer.",
+      relationship: `Revenue share exceeds customer share${shareGap < 1 ? "" : ` by ${shareGap.toFixed(1)} percentage points`}.`,
+      rationale:
+        "A small segment with relatively high revenue contribution is a suitable signal for controlled retention and upsell experiments.",
+      description:
+        "Test repurchase reminders, bundles, or next-purchase offers.",
+      reason: "The segment’s revenue share exceeds its customer share.",
+      evidence: [
+        {
+          metric: "Customers",
+          value: integer.format(highValueSegment.customerCount),
+          relationship: percent.format(highValueSegment.customerShare),
+        },
+        {
+          metric: "Revenue",
+          value: `${money.format(highValueSegment.revenue)} ₫`,
+          relationship: percent.format(highValueSegment.revenueShare),
+        },
+        {
+          metric: "Share Difference",
+          value: `${shareGap.toFixed(1)} pp`,
+          relationship: "Revenue share minus customer share",
+        },
+      ],
+    },
   ];
-  return items.map((item)=>({...item,severity:severity(item.priority)})).sort((a,b)=>b.priority-a.priority).slice(0,4);
+  return items
+    .map((item) => ({ ...item, severity: severity(item.priority) }))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 4);
 }
 
-export const recommendations=generateRecommendations();
+export const recommendations = generateRecommendations();

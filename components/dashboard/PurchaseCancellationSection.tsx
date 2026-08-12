@@ -13,15 +13,10 @@ import { adaptCancellationWorkbookData } from "@/data/adapters/cancellation.adap
 import { rawCancellationWorkbookFixture } from "@/data/fixtures/section02-workbook.fixture";
 import type { CancellationAnalysisDataset } from "@/data/contracts/dashboard";
 
-type PurchaseView = "slots" | "days";
 type CancellationView = "orders" | "revenue";
-const purchaseOptions = [
-  { value: "slots", label: "Khung giờ" },
-  { value: "days", label: "Theo ngày" },
-] as const;
 const cancellationOptions = [
-  { value: "orders", label: "Theo đơn" },
-  { value: "revenue", label: "Doanh thu" },
+  { value: "orders", label: "By Orders" },
+  { value: "revenue", label: "Revenue" },
 ] as const;
 const cancellationData = adaptCancellationWorkbookData(
   rawCancellationWorkbookFixture,
@@ -30,107 +25,71 @@ const compactNumber = new Intl.NumberFormat("en", {
   notation: "compact",
   maximumFractionDigits: 2,
 });
-const fullNumber = new Intl.NumberFormat("vi-VN");
+const fullNumber = new Intl.NumberFormat("en-US");
+const weekdayNames: Record<string, string> = {
+  "Thứ Hai": "Monday",
+  "Thứ Ba": "Tuesday",
+  "Thứ Tư": "Wednesday",
+  "Thứ Năm": "Thursday",
+  "Thứ Sáu": "Friday",
+  "Thứ Bảy": "Saturday",
+  "Chủ Nhật": "Sunday",
+};
 
 const isPurchaseTimeEmpty = (data: PurchaseTimeDataset) =>
   data.timeSlotTotals.length === 0 && data.weekdayTotals.length === 0;
 
-function PurchaseVisualization({
-  view,
-  data,
-}: {
-  view: PurchaseView;
-  data: PurchaseTimeDataset;
-}) {
+function PurchaseVisualization({ data }: { data: PurchaseTimeDataset }) {
   const maxSlot = Math.max(
     1,
     ...data.timeSlotTotals.map((item) => item.totalOrders),
   );
-  const maxDay = Math.max(
-    1,
-    ...data.weekdayTotals.map((item) => item.totalOrders),
-  );
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={view}
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -4 }}
-        transition={{ duration: 0.18 }}
-        className="h-full"
-      >
-        {view === "slots" ? (
-          <div className="grid h-full grid-cols-[54px_repeat(6,1fr)] grid-rows-[22px_repeat(7,1fr)] gap-1.5 pt-2">
-            <span />
-            {data.timeSlots.map((slot) => (
-              <span
-                key={slot}
-                className="self-end text-center text-[9px] text-[#777]"
-              >
-                {slot}
-              </span>
-            ))}
-            {data.weekdays.flatMap((day) => {
-              const cells = data.timeSlots.map(
-                (slot) =>
-                  data.timeSlotTotals.find(
-                    (item) => item.weekday === day && item.slot === slot,
-                  ) ?? null,
-              );
-              return [
-                <span
-                  key={`${day}-label`}
-                  className="self-center text-[9px] text-[#777]"
-                >
-                  {day}
-                </span>,
-                ...cells.map((cell, index) =>
-                  cell ? (
-                    <div
-                      key={`${day}-${cell.slot}`}
-                      title={`${day}, ${cell.slot}: ${cell.totalOrders} đơn`}
-                      className="rounded-md"
-                      style={{
-                        backgroundColor: `color-mix(in srgb, #180bd4 ${20 + (cell.totalOrders / maxSlot) * 80}%, white)`,
-                      }}
-                    />
-                  ) : (
-                    <div
-                      key={`${day}-${data.timeSlots[index]}`}
-                      title={`${day}, ${data.timeSlots[index]}: dữ liệu chưa được trả về`}
-                      className="rounded-md border border-dashed border-[#d8dce5] bg-[#f7f7f7]"
-                    />
-                  ),
-                ),
-              ];
-            })}
-          </div>
-        ) : (
-          <div className="flex h-full flex-col justify-center gap-3 px-2">
-            {data.weekdayTotals.map((item) => (
+    <div className="grid h-full grid-cols-[54px_repeat(6,1fr)] grid-rows-[22px_repeat(7,1fr)] gap-1.5">
+      <span />
+      {data.timeSlots.map((slot) => (
+        <span
+          key={slot}
+          className="self-end text-center text-[9px] text-[#777]"
+        >
+          {slot}
+        </span>
+      ))}
+      {data.weekdays.flatMap((day) => {
+        const cells = data.timeSlots.map(
+          (slot) =>
+            data.timeSlotTotals.find(
+              (item) => item.weekday === day && item.slot === slot,
+            ) ?? null,
+        );
+        return [
+          <span
+            key={`${day}-label`}
+            className="self-center text-[9px] text-[#777]"
+          >
+            {weekdayNames[day] ?? day}
+          </span>,
+          ...cells.map((cell, index) =>
+            cell ? (
               <div
-                key={item.weekday}
-                className="grid grid-cols-[58px_1fr_26px] items-center gap-2"
-              >
-                <span className="text-[10px] text-[#666]">{item.weekday}</span>
-                <div className="h-3 overflow-hidden rounded-full bg-[#eef4fd]">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(item.totalOrders / maxDay) * 100}%` }}
-                    transition={{ duration: 0.3 }}
-                    className="h-full rounded-full bg-[#3b82f6]"
-                  />
-                </div>
-                <strong className="text-right text-[10px]">
-                  {item.totalOrders}
-                </strong>
-              </div>
-            ))}
-          </div>
-        )}
-      </motion.div>
-    </AnimatePresence>
+                key={`${day}-${cell.slot}`}
+                title={`${weekdayNames[day] ?? day}, ${cell.slot}: ${cell.totalOrders} orders`}
+                className="rounded-md"
+                style={{
+                  backgroundColor: `color-mix(in srgb, #180bd4 ${20 + (cell.totalOrders / maxSlot) * 80}%, white)`,
+                }}
+              />
+            ) : (
+              <div
+                key={`${day}-${data.timeSlots[index]}`}
+                title={`${weekdayNames[day] ?? day}, ${data.timeSlots[index]}: data not returned`}
+                className="rounded-md border border-dashed border-[#d8dce5] bg-[#f7f7f7]"
+              />
+            ),
+          ),
+        ];
+      })}
+    </div>
   );
 }
 
@@ -166,7 +125,7 @@ function CancellationVisualization({
         {rows.map((row) => (
           <div
             key={row.reason}
-            title={`${row.reason} · ${view === "orders" ? `${row.cancelledOrders} đơn huỷ` : `${fullNumber.format(row.lostRevenue)} doanh thu thất thoát`}`}
+            title={`${row.reason} · ${view === "orders" ? `${row.cancelledOrders} cancelled orders` : `${fullNumber.format(row.lostRevenue)} revenue loss`}`}
             className="grid grid-cols-[minmax(120px,1.3fr)_2fr_42px] items-center gap-2"
           >
             <span className="truncate text-[9px]">{row.reason}</span>
@@ -189,7 +148,6 @@ function CancellationVisualization({
 }
 
 export function PurchaseTimeSection() {
-  const [view, setView] = useState<PurchaseView>("slots");
   const { startDate, endDate } = useDashboardDateRange();
   const state = useSectionData(
     getPurchaseTimeData,
@@ -199,41 +157,35 @@ export function PurchaseTimeSection() {
   );
   const stateLabel =
     state.status === "loading"
-      ? "Đang tải dữ liệu"
+      ? "Loading data"
       : state.status === "empty"
-        ? "Không có dữ liệu trong kỳ"
+        ? "No data for this period"
         : state.status === "unavailable"
-          ? "Dữ liệu chưa khả dụng"
+          ? "Data unavailable"
           : state.status === "error"
-            ? `Không thể tải dữ liệu: ${state.message}`
+            ? `Unable to load data: ${state.message}`
             : null;
   return (
     <section className="flex min-w-0 flex-col min-[1050px]:h-full">
       <div className="min-[1050px]:min-h-[74px]">
         <SectionHeading
-          title="02. Thời điểm mua hàng"
-          subtitle="Khách hàng thường phát sinh đơn vào thời điểm nào?"
+          title="02. Purchase Timing"
+          subtitle="When do customers typically place orders?"
         />
       </div>
-      <Card className="flex min-h-[368px] w-full flex-1 flex-col p-3.5 min-[1050px]:min-h-[460px]">
+      <Card className="flex min-h-[340px] w-full flex-1 flex-col p-3.5 min-[1050px]:min-h-[420px]">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-[15px] font-semibold">Thời điểm mua hàng</h3>
+            <h3 className="text-[15px] font-semibold">Purchase Timing</h3>
             <p className="mt-1 text-[12px] text-[#707070]">
-              Khách thường mua khi nào?
+              When do customers usually purchase?
             </p>
           </div>
-          <SegmentedControl
-            value={view}
-            options={purchaseOptions}
-            onChange={setView}
-            ariaLabel="Chế độ phân tích thời điểm mua hàng"
-          />
         </div>
-        <div className="mt-2.5 flex min-h-0 flex-1 items-start">
+        <div className="mt-2 flex min-h-0 flex-1 items-start">
           <div className="h-[250px] w-full">
             {state.status === "success" ? (
-              <PurchaseVisualization view={view} data={state.data} />
+              <PurchaseVisualization data={state.data} />
             ) : (
               <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[#e5e5e5] bg-[#fbfbfb] px-4 text-center text-[12px] text-[#aaa]">
                 {stateLabel}
@@ -253,25 +205,23 @@ export function CancellationAnalysisSection() {
     <section className="flex min-w-0 flex-col min-[1050px]:h-full">
       <div className="min-[1050px]:min-h-[74px]">
         <SectionHeading
-          title="07. Phân tích lý do huỷ đơn"
-          subtitle="Nguyên nhân huỷ đơn và giá trị doanh thu thất thoát."
+          title="07. Cancellation Analysis"
+          subtitle="Cancellation reasons and associated revenue loss."
         />
       </div>
       <Card className="flex min-h-[368px] w-full flex-1 flex-col p-3.5 min-[1050px]:min-h-[520px]">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-[15px] font-semibold">
-              Phân tích lý do huỷ đơn
-            </h3>
+            <h3 className="text-[15px] font-semibold">Cancellation Analysis</h3>
             <p className="mt-1 text-[12px] text-[#707070]">
-              Tỷ trọng theo từng nguyên nhân
+              Share by Cancellation Reason
             </p>
           </div>
           <SegmentedControl
             value={cancellationView}
             options={cancellationOptions}
             onChange={setCancellationView}
-            ariaLabel="Chỉ số phân tích lý do huỷ đơn"
+            ariaLabel="Cancellation analysis metric"
           />
         </div>
         <CancellationVisualization
@@ -282,8 +232,8 @@ export function CancellationAnalysisSection() {
           <div className="rounded-xl border border-[#dedede] p-2">
             <span className="text-[9px] text-[#777]">
               {cancellationView === "orders"
-                ? "Tổng đơn huỷ"
-                : "Thiệt hại kỳ này"}
+                ? "Cancelled Orders"
+                : "Current Revenue Loss"}
             </span>
             <strong className="mt-1 block text-[16px] text-[#180bd4]">
               {cancellationView === "orders"
@@ -292,7 +242,7 @@ export function CancellationAnalysisSection() {
             </strong>
           </div>
           <div className="rounded-xl border border-[#dedede] p-2">
-            <span className="text-[9px] text-[#777]">So với kỳ trước</span>
+            <span className="text-[9px] text-[#777]">Vs. Previous Period</span>
             <strong className="mt-1 block text-[16px] text-[#3b82f6]">—</strong>
           </div>
         </div>
