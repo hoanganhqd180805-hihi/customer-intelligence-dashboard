@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { JourneyNodeData } from "@/data/contracts/dashboard";
 import {
   journeyLinks,
@@ -10,24 +16,44 @@ import {
 import { journeyConversionWowByStep } from "@/data/fixtures/journey-comparison.fixture";
 import { getActiveJourneyGraph } from "@/lib/journey/graph";
 import { layoutJourney } from "@/lib/journey/layout";
+import {
+  announceAnalyticalTooltip,
+  subscribeToOtherAnalyticalTooltips,
+} from "@/lib/interaction/analytical-tooltip";
 
 interface NodeBreakdownItem {
   id: string;
   label: string;
   value: number;
+  conversionRate?: number;
 }
-interface NodeBreakdown {
+interface NodeBreakdownSection {
+  kind: "share" | "conversion";
   title: string;
   total: number;
-  unit: string;
   items: NodeBreakdownItem[];
+}
+interface NodeBreakdown extends NodeBreakdownSection {
+  unit: string;
+  secondary?: NodeBreakdownSection;
+}
+type NodeDetailPlacement = "right" | "left" | "below" | "above";
+interface NodeAnchorRect {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  width: number;
+  height: number;
 }
 interface NodeDetailState {
   node: JourneyNodeData;
   breakdown: NodeBreakdown;
+  anchor: NodeAnchorRect;
+  placement: NodeDetailPlacement;
+  width: number;
   x: number;
   y: number;
-  pinned: boolean;
 }
 type JourneyMetricKind = "conversion" | "dropoff";
 interface JourneyStepMetricSource {
@@ -160,11 +186,6 @@ const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
 const visibleLinks = journeyLinks.filter(
   (link) => visibleNodeIds.has(link.source) && visibleNodeIds.has(link.target),
 );
-const marketplaceNodeIds = new Set(
-  journeyNodes
-    .filter((node) => node.stage === "MARKETPLACE")
-    .map((node) => node.id),
-);
 const labelsByStage = (stage: string) =>
   journeyNodes
     .filter((node) => node.stage === stage)
@@ -191,7 +212,82 @@ const createIncomingBreakdown = (
       })
       .sort((a, b) => b.value - a.value),
     total = items.reduce((sum, item) => sum + item.value, 0);
-  return { title, total, unit, items };
+  return { kind: "share", title, total, unit, items };
+};
+const createConversionBreakdown = (
+  targetLabel: string,
+  unit: string,
+  transitions: Array<{
+    id: string;
+    label: string;
+    converted: number;
+    eligible: number;
+  }>,
+): NodeBreakdown => ({
+  kind: "conversion",
+  title: `Conversion Rate to ${targetLabel}`,
+  total: sourceNode(targetLabel).value,
+  unit,
+  items: transitions
+    .map((transition) => ({
+      id: transition.id,
+      label: transition.label,
+      value: transition.converted,
+      conversionRate: calculateConversionRate(
+        transition.converted,
+        transition.eligible,
+      ),
+    }))
+    .sort(
+      (a, b) => (b.conversionRate ?? 0) - (a.conversionRate ?? 0),
+    ),
+});
+const createDirectIncomingConversionBreakdown = (
+  targetLabel: string,
+  unit: string,
+): NodeBreakdown => {
+  const target = sourceNode(targetLabel);
+  return createConversionBreakdown(
+    targetLabel,
+    unit,
+    journeyLinks
+      .filter((link) => link.target === target.id)
+      .map((link) => {
+        const source = journeyNodes.find((node) => node.id === link.source)!;
+        return {
+          id: link.id,
+          label: `${source.label} → ${target.label}`,
+          converted: link.value,
+          eligible: source.value,
+        };
+      }),
+  );
+};
+const createDirectOutgoingConversionSection = (
+  sourceLabel: string,
+  title: string,
+): NodeBreakdownSection => {
+  const source = sourceNode(sourceLabel),
+    items = journeyLinks
+      .filter((link) => link.source === source.id)
+      .map((link) => {
+        const target = journeyNodes.find((node) => node.id === link.target)!;
+        return {
+          id: link.id,
+          label: target.label,
+          value: link.value,
+          conversionRate: calculateConversionRate(link.value, source.value),
+        };
+      })
+      .sort(
+        (a, b) => (b.conversionRate ?? 0) - (a.conversionRate ?? 0),
+      );
+  return {
+    kind: "conversion",
+    title,
+    total: source.value,
+    items,
+  };
 };
 const contentNodeLabels = labelsByStage("CONTENT / ENTRY DRIVER");
 const nodeBreakdownEntries: Array<[string, NodeBreakdown]> = [];
@@ -209,81 +305,160 @@ for (const marketplace of labelsByStage("MARKETPLACE")) {
 for (const content of contentNodeLabels) {
   nodeBreakdownEntries.push([
     sourceNode(content).id,
-    createIncomingBreakdown(
-      content,
-      "Traffic by Platform",
-      "traffic",
-      labelsByStage("MARKETPLACE"),
-    ),
+    createDirectIncomingConversionBreakdown(content, "traffic"),
   ]);
 }
 nodeBreakdownEntries.push(
   [
     sourceNode("Product View").id,
-    createIncomingBreakdown(
-      "Product View",
-      "Traffic by Content",
-      "views",
-      contentNodeLabels,
-    ),
+    createDirectIncomingConversionBreakdown("Product View", "views"),
   ],
   [
     sourceNode("Add to Cart").id,
-    createIncomingBreakdown(
-      "Add to Cart",
-      "By Upstream Step",
-      "actions",
-      ["Product View"],
-    ),
+    createDirectIncomingConversionBreakdown("Add to Cart", "actions"),
   ],
   [
     sourceNode("Order").id,
-    createIncomingBreakdown(
-      "Order",
-      "Orders by Upstream Path",
-      "orders",
-      ["Product View", "Add to Cart"],
-    ),
+    createDirectIncomingConversionBreakdown("Order", "orders"),
   ],
   [
     sourceNode("Complete").id,
     {
-      title: "Post-purchase Signals",
-      total: sourceLink("Order", "Complete").value,
-      unit: "completed orders",
-      items: ["Good Review", "Bad Review", "Buy Again", "Return"]
-        .map((label) => ({
-          id: sourceNode(label).id,
-          label,
-          value: sourceLink("Complete", label).value,
-        }))
-        .sort((a, b) => b.value - a.value),
+      ...createDirectIncomingConversionBreakdown(
+        "Complete",
+        "completed orders",
+      ),
+      title: "Conversion Rate",
+      secondary: createDirectOutgoingConversionSection(
+        "Complete",
+        "Post-purchase",
+      ),
+    },
+  ],
+  [
+    sourceNode("Cancel").id,
+    {
+      ...createDirectIncomingConversionBreakdown(
+        "Cancel",
+        "cancelled orders",
+      ),
+      title: "Order Result Rate",
+    },
+  ],
+  [
+    sourceNode("Processing").id,
+    {
+      ...createDirectIncomingConversionBreakdown(
+        "Processing",
+        "processing orders",
+      ),
+      title: "Order Result Rate",
     },
   ],
 );
 const nodeBreakdowns = new Map(nodeBreakdownEntries);
 const detailNodeIds = new Set(nodeBreakdowns.keys());
+const getBreakdownSections = (
+  breakdown: NodeBreakdown,
+): NodeBreakdownSection[] => [
+  breakdown,
+  ...(breakdown.secondary ? [breakdown.secondary] : []),
+];
 
-function clampNodeDetail(
-  clientX: number,
-  clientY: number,
-  itemCount: number,
-) {
-  const width = 300,
-    height = 92 + itemCount * 25,
-    pad = 14;
+const snapshotRect = (rect: DOMRect): NodeAnchorRect => ({
+  left: rect.left,
+  right: rect.right,
+  top: rect.top,
+  bottom: rect.bottom,
+  width: rect.width,
+  height: rect.height,
+});
+const getNodeDetailWidth = (
+  breakdown: NodeBreakdown,
+  containerWidth: number,
+) => {
+  const itemCount =
+      breakdown.items.length + (breakdown.secondary?.items.length ?? 0),
+    preferredWidth = itemCount <= 1 ? 260 : itemCount <= 2 ? 290 : 340;
+  return Math.max(220, Math.min(preferredWidth, containerWidth - 28));
+};
+const estimateNodeDetailHeight = (breakdown: NodeBreakdown) => {
+  const sections = getBreakdownSections(breakdown),
+    itemCount = sections.reduce(
+      (total, section) => total + section.items.length,
+      0,
+    );
+  return 58 + sections.length * 25 + itemCount * 22;
+};
+const preferredPlacements = (node: JourneyNodeData): NodeDetailPlacement[] => {
+  if (node.stage === "ORDER" || node.stage === "ORDER RESULT")
+    return ["left", "right", "below", "above"];
+  if (node.stage === "ADD TO CART")
+    return ["below", "above", "right", "left"];
+  if (node.stage === "PRODUCT VIEW")
+    return ["right", "below", "left", "above"];
+  return ["right", "left", "below", "above"];
+};
+const positionNodeDetail = (
+  node: JourneyNodeData,
+  anchor: NodeAnchorRect,
+  container: DOMRect,
+  width: number,
+  height: number,
+) => {
+  const gap = 16,
+    pad = 14,
+    anchorLeft = anchor.left - container.left,
+    anchorRight = anchor.right - container.left,
+    anchorTop = anchor.top - container.top,
+    anchorBottom = anchor.bottom - container.top,
+    anchorCenterX = anchorLeft + anchor.width / 2,
+    anchorCenterY = anchorTop + anchor.height / 2,
+    candidates: Record<NodeDetailPlacement, { x: number; y: number }> = {
+      right: {
+        x: anchorRight + gap,
+        y: anchorCenterY - height / 2,
+      },
+      left: {
+        x: anchorLeft - width - gap,
+        y: anchorCenterY - height / 2,
+      },
+      below: {
+        x: anchorCenterX - width / 2,
+        y: anchorBottom + gap,
+      },
+      above: {
+        x: anchorCenterX - width / 2,
+        y: anchorTop - height - gap,
+      },
+    },
+    fits = ({ x, y }: { x: number; y: number }) =>
+      x >= pad &&
+      y >= pad &&
+      x + width <= container.width - pad &&
+      y + height <= container.height - pad,
+    placement =
+      preferredPlacements(node).find((candidate) => fits(candidates[candidate])) ??
+      preferredPlacements(node)[0],
+    candidate = candidates[placement],
+    maxX = Math.max(pad, container.width - width - pad),
+    maxY = Math.max(pad, container.height - height - pad);
   return {
-    x: Math.max(pad, Math.min(clientX + 16, window.innerWidth - width - pad)),
-    y: Math.max(pad, Math.min(clientY - 22, window.innerHeight - height - pad)),
+    placement,
+    x: Math.max(pad, Math.min(candidate.x, maxX)),
+    y: Math.max(pad, Math.min(candidate.y, maxY)),
   };
-}
+};
 
 interface JourneyMetricCardProps {
   metric: JourneyStepMetric;
   kind: JourneyMetricKind;
   index: number;
   openKey: string | null;
-  onToggle: (key: string) => void;
+  onOpen: (key: string) => void;
+  onClose: () => void;
+  onCancelClose: () => void;
+  onTouchToggle: (key: string) => void;
   isBiggestDropoff?: boolean;
 }
 
@@ -292,7 +467,10 @@ function JourneyMetricCard({
   kind,
   index,
   openKey,
-  onToggle,
+  onOpen,
+  onClose,
+  onCancelClose,
+  onTouchToggle,
   isBiggestDropoff = false,
 }: JourneyMetricCardProps) {
   const isConversion = kind === "conversion",
@@ -337,8 +515,15 @@ function JourneyMetricCard({
           aria-label={`Compare ${metric.step} ${kind} with previous period`}
           aria-expanded={isOpen}
           aria-controls={comparisonId}
-          onClick={() => onToggle(comparisonKey)}
-          className={`inline-flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/[.04] text-[12px] font-bold leading-none opacity-80 transition hover:bg-white/[.1] hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86eae9] ${trendColor}`}
+          onMouseEnter={() => onOpen(comparisonKey)}
+          onMouseLeave={onClose}
+          onFocus={() => onOpen(comparisonKey)}
+          onBlur={onClose}
+          onClick={() => {
+            if (window.matchMedia("(hover: none)").matches)
+              onTouchToggle(comparisonKey);
+          }}
+          className={`inline-flex h-5 w-5 shrink-0 cursor-default items-center justify-center rounded-full bg-white/[.04] text-[12px] font-bold leading-none opacity-80 transition hover:bg-white/[.1] hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86eae9] ${trendColor}`}
         >
           <span aria-hidden="true">{arrow}</span>
         </button>
@@ -347,9 +532,11 @@ function JourneyMetricCard({
         <div
           id={comparisonId}
           data-comparison-popover="true"
-          role="dialog"
+          role="tooltip"
           aria-label={`${metric.step} ${kind} comparison`}
           className={`absolute left-1/2 z-30 w-[188px] -translate-x-1/2 rounded-[10px] border border-[#86eae9]/20 bg-[#070a1b]/[.98] p-2.5 text-left text-[10px] text-[#9aa3c9] shadow-2xl ${isConversion ? "bottom-full mb-2" : "top-full mt-2"}`}
+          onMouseEnter={onCancelClose}
+          onMouseLeave={onClose}
         >
           <p className="mb-1.5 font-semibold text-[#dce5ff]">
             Compared with previous period
@@ -378,8 +565,10 @@ export function CustomerJourneySection() {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [nodeDetail, setNodeDetail] = useState<NodeDetailState | null>(null);
   const [openComparison, setOpenComparison] = useState<string | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const nodeDetailPopoverRef = useRef<HTMLDivElement>(null);
   const nodeDetailHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const comparisonHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layout = useMemo(
     () => layoutJourney(visibleNodes, visibleLinks, visibleStages),
     [],
@@ -396,65 +585,121 @@ export function CustomerJourneySection() {
         : null,
     [focusId],
   );
-  const selectNode = (id: string) =>
-    setSelectedId((current) => (current === id ? null : id));
-  const toggleComparison = (key: string) =>
+  const cancelComparisonHide = () => {
+    if (!comparisonHideTimer.current) return;
+    clearTimeout(comparisonHideTimer.current);
+    comparisonHideTimer.current = null;
+  };
+  const scheduleComparisonHide = () => {
+    cancelComparisonHide();
+    comparisonHideTimer.current = setTimeout(
+      () => setOpenComparison(null),
+      180,
+    );
+  };
+  const openComparisonDetail = (key: string) => {
+    announceAnalyticalTooltip("customer-journey");
+    cancelComparisonHide();
+    cancelNodeDetailHide();
+    setNodeDetail(null);
+    setSelectedId(null);
+    setHoveredId(null);
+    setOpenComparison(key);
+  };
+  const toggleTouchComparison = (key: string) => {
+    announceAnalyticalTooltip("customer-journey");
+    cancelComparisonHide();
     setOpenComparison((current) => (current === key ? null : key));
+  };
   const cancelNodeDetailHide = () => {
-    if (nodeDetailHideTimer.current) {
-      clearTimeout(nodeDetailHideTimer.current);
-      nodeDetailHideTimer.current = null;
-    }
+    if (!nodeDetailHideTimer.current) return;
+    clearTimeout(nodeDetailHideTimer.current);
+    nodeDetailHideTimer.current = null;
   };
   const scheduleNodeDetailHide = () => {
     cancelNodeDetailHide();
     nodeDetailHideTimer.current = setTimeout(() => {
-      setNodeDetail((current) => (current?.pinned ? current : null));
-      setHoveredId((current) =>
-        current && detailNodeIds.has(current) ? null : current,
-      );
+      setNodeDetail(null);
+      setHoveredId(null);
     }, 200);
   };
   const openNodeDetail = (
     node: JourneyNodeData,
-    clientX: number,
-    clientY: number,
-    pinned: boolean,
+    nodeElement: SVGGElement,
   ) => {
-    const breakdown = nodeBreakdowns.get(node.id);
-    if (!breakdown) return;
+    const breakdown = nodeBreakdowns.get(node.id),
+      section = sectionRef.current;
+    if (!breakdown || !section) return;
+    announceAnalyticalTooltip("customer-journey");
+    const anchor = snapshotRect(nodeElement.getBoundingClientRect()),
+      container = section.getBoundingClientRect(),
+      width = getNodeDetailWidth(breakdown, container.width),
+      initialPosition = positionNodeDetail(
+        node,
+        anchor,
+        container,
+        width,
+        estimateNodeDetailHeight(breakdown),
+      );
+    cancelComparisonHide();
+    setOpenComparison(null);
     cancelNodeDetailHide();
-    if (
-      pinned &&
-      nodeDetail?.pinned &&
-      nodeDetail.node.id === node.id
-    ) {
-      setNodeDetail(null);
-      setHoveredId(null);
-      return;
-    }
+    if (window.matchMedia("(hover: hover)").matches) setSelectedId(null);
     setHoveredId(node.id);
     setNodeDetail({
       node,
       breakdown,
-      ...clampNodeDetail(clientX, clientY, breakdown.items.length),
-      pinned,
+      anchor,
+      width,
+      ...initialPosition,
     });
   };
+  useLayoutEffect(() => {
+    const popover = nodeDetailPopoverRef.current,
+      section = sectionRef.current;
+    if (!nodeDetail || !popover || !section) return;
+    const nextPosition = positionNodeDetail(
+      nodeDetail.node,
+      nodeDetail.anchor,
+      section.getBoundingClientRect(),
+      popover.offsetWidth,
+      popover.offsetHeight,
+    );
+    if (
+      nextPosition.x === nodeDetail.x &&
+      nextPosition.y === nodeDetail.y &&
+      nextPosition.placement === nodeDetail.placement
+    )
+      return;
+    setNodeDetail((current) =>
+      current?.node.id === nodeDetail.node.id
+        ? { ...current, ...nextPosition }
+        : current,
+    );
+  }, [nodeDetail]);
+  useEffect(() => {
+    return subscribeToOtherAnalyticalTooltips("customer-journey", () => {
+      cancelNodeDetailHide();
+      cancelComparisonHide();
+      setNodeDetail(null);
+      setOpenComparison(null);
+      setSelectedId(null);
+      setHoveredId(null);
+    });
+  }, []);
   useEffect(() => {
     const closeNodeDetail = (event: PointerEvent) => {
       const target = event.target as Element;
       if (nodeDetailPopoverRef.current?.contains(target)) return;
       if (target.closest('[data-node-detail-trigger="true"]')) return;
-      cancelNodeDetailHide();
       setNodeDetail(null);
-      setHoveredId((current) =>
-        current && detailNodeIds.has(current) ? null : current,
-      );
+      setSelectedId(null);
+      setHoveredId(null);
     };
     document.addEventListener("pointerdown", closeNodeDetail);
     return () => {
       cancelNodeDetailHide();
+      cancelComparisonHide();
       document.removeEventListener("pointerdown", closeNodeDetail);
     };
   }, []);
@@ -476,7 +721,10 @@ export function CustomerJourneySection() {
     return () => media.removeEventListener("change", update);
   }, []);
   return (
-    <section className="@container rounded-[24px] border border-[#1c2350] bg-[radial-gradient(1200px_500px_at_15%_-10%,rgba(74,153,210,.18),transparent_60%),radial-gradient(1000px_480px_at_90%_110%,rgba(134,234,233,.12),transparent_60%),linear-gradient(180deg,#0a0f2b,#050714)] p-5 text-[#eef1fb] shadow-[0_22px_60px_rgba(9,14,42,.18)]">
+    <section
+      ref={sectionRef}
+      className="relative isolate @container rounded-[24px] border border-[#1c2350] bg-[radial-gradient(1200px_500px_at_15%_-10%,rgba(74,153,210,.18),transparent_60%),radial-gradient(1000px_480px_at_90%_110%,rgba(134,234,233,.12),transparent_60%),linear-gradient(180deg,#0a0f2b,#050714)] p-5 text-[#eef1fb] shadow-[0_22px_60px_rgba(9,14,42,.18)]"
+    >
       <div className="flex items-center gap-2.5 text-[11px] font-bold tracking-[.14em] text-[#86eae9]">
         <span className="rounded-full bg-[#86eae9] px-2 py-1 text-[11px] text-[#04231f]">
           04
@@ -496,7 +744,10 @@ export function CustomerJourneySection() {
               kind="conversion"
               index={index}
               openKey={openComparison}
-              onToggle={toggleComparison}
+              onOpen={openComparisonDetail}
+              onClose={scheduleComparisonHide}
+              onCancelClose={cancelComparisonHide}
+              onTouchToggle={toggleTouchComparison}
             />
           ))}
         </div>
@@ -513,7 +764,7 @@ export function CustomerJourneySection() {
                 setSelectedId(null);
                 setNodeDetail(null);
               }}
-              className="font-semibold text-[#86eae9] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86eae9]"
+              className="cursor-pointer font-semibold text-[#86eae9] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86eae9]"
             >
               Reset
             </button>
@@ -524,10 +775,6 @@ export function CustomerJourneySection() {
           preserveAspectRatio="xMidYMid meet"
           aria-label="Customer journey chart"
           className="block w-full touch-manipulation"
-          onClick={() => {
-            setSelectedId(null);
-            setNodeDetail(null);
-          }}
         >
           <defs>
             <filter
@@ -658,7 +905,6 @@ export function CustomerJourneySection() {
           {layout.nodes.map((node) => {
             const emphasized = !active || active.nodeIds.has(node.id),
               selected = selectedId === node.id,
-              isMarketplace = marketplaceNodeIds.has(node.id),
               hasDetail = detailNodeIds.has(node.id),
               detailActive = nodeDetail?.node.id === node.id;
             return (
@@ -667,76 +913,53 @@ export function CustomerJourneySection() {
                 role="button"
                 tabIndex={0}
                 aria-label={`${node.label} ${numberFormat.format(node.value)}`}
-                aria-pressed={isMarketplace ? undefined : selected}
+                aria-pressed={selected}
                 aria-expanded={hasDetail ? detailActive : undefined}
                 data-node-detail-trigger={hasDetail ? "true" : undefined}
                 onClick={(event) => {
                   event.stopPropagation();
-                  if (
-                    hasDetail &&
-                    !window.matchMedia("(hover: hover)").matches
-                  ) {
-                    openNodeDetail(
-                      node,
-                      event.clientX,
-                      event.clientY,
-                      true,
-                    );
-                  } else if (!isMarketplace) {
+                  if (!window.matchMedia("(hover: none)").matches) return;
+                  if (selectedId === node.id) {
+                    setSelectedId(null);
+                    setHoveredId(null);
                     setNodeDetail(null);
-                    selectNode(node.id);
+                    return;
                   }
+                  if (hasDetail) openNodeDetail(node, event.currentTarget);
+                  setSelectedId(node.id);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    if (hasDetail) {
-                      const bounds =
-                        event.currentTarget.getBoundingClientRect();
-                      openNodeDetail(
-                        node,
-                        bounds.right,
-                        bounds.top + bounds.height / 2,
-                        true,
-                      );
-                    } else {
+                    if (selectedId === node.id) {
+                      setSelectedId(null);
+                      setHoveredId(null);
                       setNodeDetail(null);
-                      selectNode(node.id);
+                    } else {
+                      if (hasDetail)
+                        openNodeDetail(node, event.currentTarget);
+                      setSelectedId(node.id);
                     }
                   }
                 }}
                 onMouseEnter={(event) => {
-                  if (!selectedId) setHoveredId(node.id);
-                  if (hasDetail)
-                    openNodeDetail(
-                      node,
-                      event.clientX,
-                      event.clientY,
-                      false,
-                    );
+                  if (hasDetail) openNodeDetail(node, event.currentTarget);
+                  else if (!selectedId) setHoveredId(node.id);
                 }}
                 onMouseLeave={() => {
                   if (hasDetail) scheduleNodeDetailHide();
                   else if (!selectedId) setHoveredId(null);
                 }}
                 onFocus={(event) => {
-                  if (!selectedId) setHoveredId(node.id);
-                  if (hasDetail) {
-                    const bounds = event.currentTarget.getBoundingClientRect();
-                    openNodeDetail(
-                      node,
-                      bounds.right,
-                      bounds.top + bounds.height / 2,
-                      false,
-                    );
-                  }
+                  if (hasDetail) openNodeDetail(node, event.currentTarget);
+                  else if (!selectedId) setHoveredId(node.id);
                 }}
                 onBlur={() => {
                   if (hasDetail) scheduleNodeDetailHide();
                   else if (!selectedId) setHoveredId(null);
                 }}
                 opacity={emphasized ? 1 : 0.14}
-                className="cursor-pointer focus-visible:outline-none"
+                className="cursor-default focus-visible:outline-none"
                 style={{ transition: "opacity .24s ease" }}
               >
                 <rect
@@ -755,7 +978,7 @@ export function CustomerJourneySection() {
                   rx="3"
                   fill={node.color}
                   style={{
-                    filter: `drop-shadow(0 0 ${emphasized ? 10 : 6}px ${node.color})`,
+                    filter: `drop-shadow(0 0 ${detailActive ? 14 : emphasized ? 10 : 6}px ${node.color})`,
                   }}
                 />
                 <circle
@@ -812,7 +1035,10 @@ export function CustomerJourneySection() {
               kind="dropoff"
               index={index}
               openKey={openComparison}
-              onToggle={toggleComparison}
+              onOpen={openComparisonDetail}
+              onClose={scheduleComparisonHide}
+              onCancelClose={cancelComparisonHide}
+              onTouchToggle={toggleTouchComparison}
               isBiggestDropoff={
                 metric.currentDropoffRate === biggestCurrentDropoffRate
               }
@@ -825,8 +1051,13 @@ export function CustomerJourneySection() {
           ref={nodeDetailPopoverRef}
           role="tooltip"
           aria-label={`${nodeDetail.node.label} ${nodeDetail.breakdown.title.toLowerCase()}`}
-          className="fixed z-[1000] w-[300px] rounded-[12px] border border-[#86eae9]/25 bg-[#070a1b]/95 px-3 py-2.5 text-[11px] text-[#eef1fb] shadow-2xl backdrop-blur"
-          style={{ left: nodeDetail.x, top: nodeDetail.y }}
+          data-placement={nodeDetail.placement}
+          className="absolute z-[1000] rounded-[12px] border border-[#86eae9]/25 bg-[#070a1b]/95 px-3 py-2.5 text-[11px] text-[#eef1fb] shadow-2xl backdrop-blur"
+          style={{
+            left: nodeDetail.x,
+            top: nodeDetail.y,
+            width: nodeDetail.width,
+          }}
           onMouseEnter={cancelNodeDetailHide}
           onMouseLeave={scheduleNodeDetailHide}
         >
@@ -837,37 +1068,52 @@ export function CustomerJourneySection() {
             {numberFormat.format(nodeDetail.breakdown.total)}{" "}
             {nodeDetail.breakdown.unit}
           </p>
-          <div className="my-1.5 border-t border-white/[.09]" />
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[.08em] text-[#9aa3c9]">
-            {nodeDetail.breakdown.title}
-          </p>
-          <div className="space-y-1.5">
-            {nodeDetail.breakdown.items.map((item) => {
-              const share =
-                nodeDetail.breakdown.total > 0
-                  ? item.value / nodeDetail.breakdown.total
-                  : 0;
-              return (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-[86px_42px_1fr] items-center gap-2"
-                >
-                  <span className="truncate text-[#dce5ff]">
-                    {item.label}
-                  </span>
-                  <strong className="text-right text-[#cfe9ff]">
-                    {percentageFormat.format(share)}
-                  </strong>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/[.08]">
-                    <div
-                      className="h-full rounded-full bg-[#86eae9]"
-                      style={{ width: `${share * 100}%` }}
-                    />
-                  </div>
+          {getBreakdownSections(nodeDetail.breakdown).map(
+            (section, sectionIndex) => (
+              <div
+                key={section.title}
+                className={
+                  sectionIndex === 0
+                    ? "mt-1.5 border-t border-white/[.09] pt-1.5"
+                    : "mt-2 border-t border-white/[.09] pt-2"
+                }
+              >
+                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[.08em] text-[#9aa3c9]">
+                  {section.title}
+                </p>
+                <div className="space-y-1.5">
+                  {section.items.map((item) => {
+                    const rate =
+                        section.kind === "conversion"
+                          ? (item.conversionRate ?? 0)
+                          : section.total > 0
+                            ? (item.value / section.total) * 100
+                            : 0,
+                      boundedRate = Math.max(0, Math.min(rate, 100));
+                    return (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-[minmax(0,1fr)_44px_80px] items-center gap-2"
+                      >
+                        <span className="truncate text-[#dce5ff]">
+                          {item.label}
+                        </span>
+                        <strong className="text-right text-[#cfe9ff]">
+                          {formatRate(rate)}
+                        </strong>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-white/[.08]">
+                          <div
+                            className="h-full rounded-full bg-[#86eae9]"
+                            style={{ width: `${boundedRate}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            ),
+          )}
         </div>
       )}
     </section>

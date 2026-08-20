@@ -6,6 +6,10 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import type { PurchaseTimeDataset } from "@/data/contracts/dashboard";
 import { getPurchaseTimeData } from "@/data/services/purchase-time.service";
 import { useSectionData } from "@/lib/hooks/use-section-data";
+import {
+  announceAnalyticalTooltip,
+  subscribeToOtherAnalyticalTooltips,
+} from "@/lib/interaction/analytical-tooltip";
 import { useDashboardDateRange } from "./DashboardDateRangeContext";
 
 const weekdayNames: Record<string, string> = {
@@ -26,17 +30,51 @@ function PurchaseHeatmap({ data }: { data: PurchaseTimeDataset }) {
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null);
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const heatmapRef = useRef<HTMLDivElement>(null);
+  const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxSlot = Math.max(
     1,
     ...data.timeSlotTotals.map((item) => item.totalOrders),
   );
   const activeCellId = selectedCellId ?? hoveredCellId;
+  const cancelHoverHide = () => {
+    if (!hoverHideTimer.current) return;
+    clearTimeout(hoverHideTimer.current);
+    hoverHideTimer.current = null;
+  };
+  const showCellDetail = (cellId: string) => {
+    announceAnalyticalTooltip("purchase-timing");
+    cancelHoverHide();
+    setHoveredCellId(cellId);
+  };
+  const scheduleHoverHide = () => {
+    cancelHoverHide();
+    hoverHideTimer.current = setTimeout(() => setHoveredCellId(null), 180);
+  };
+
+  useEffect(
+    () => () => {
+      if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
+    },
+  );
+  useEffect(
+    () =>
+      subscribeToOtherAnalyticalTooltips("purchase-timing", () => {
+        if (hoverHideTimer.current) {
+          clearTimeout(hoverHideTimer.current);
+          hoverHideTimer.current = null;
+        }
+        setHoveredCellId(null);
+        setSelectedCellId(null);
+      }),
+    [],
+  );
 
   useEffect(() => {
     if (!selectedCellId) return;
     const closeOnOutsidePointer = (event: PointerEvent) => {
       if (heatmapRef.current?.contains(event.target as Node)) return;
       setSelectedCellId(null);
+      setHoveredCellId(null);
     };
     document.addEventListener("pointerdown", closeOnOutsidePointer);
     return () =>
@@ -103,7 +141,7 @@ function PurchaseHeatmap({ data }: { data: PurchaseTimeDataset }) {
                 type="button"
                 aria-label={`${dayLabel}, ${cell.slot}: ${orderFormat.format(cell.totalOrders)} orders`}
                 aria-describedby={active ? tooltipId : undefined}
-                className={`relative appearance-none rounded-md border-0 p-0 transition-[box-shadow,filter] duration-150 focus-visible:z-30 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#3b82f6] ${
+                className={`relative cursor-default appearance-none rounded-md border-0 p-0 transition-[box-shadow,filter] duration-150 focus-visible:z-30 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#3b82f6] ${
                   active
                     ? "z-30 ring-2 ring-[#3b82f6]/60 ring-offset-1 brightness-[1.04]"
                     : "hover:brightness-[1.03]"
@@ -111,12 +149,13 @@ function PurchaseHeatmap({ data }: { data: PurchaseTimeDataset }) {
                 style={{
                   backgroundColor: `color-mix(in srgb, #180bd4 ${20 + (cell.totalOrders / maxSlot) * 80}%, white)`,
                 }}
-                onMouseEnter={() => setHoveredCellId(cellId)}
-                onMouseLeave={() => setHoveredCellId(null)}
-                onFocus={() => setHoveredCellId(cellId)}
-                onBlur={() => setHoveredCellId(null)}
+                onMouseEnter={() => showCellDetail(cellId)}
+                onMouseLeave={scheduleHoverHide}
+                onFocus={() => showCellDetail(cellId)}
+                onBlur={scheduleHoverHide}
                 onPointerUp={(event) => {
                   if (event.pointerType === "mouse") return;
+                  announceAnalyticalTooltip("purchase-timing");
                   setSelectedCellId((current) =>
                     current === cellId ? null : cellId,
                   );
@@ -124,6 +163,7 @@ function PurchaseHeatmap({ data }: { data: PurchaseTimeDataset }) {
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
+                    announceAnalyticalTooltip("purchase-timing");
                     setSelectedCellId((current) =>
                       current === cellId ? null : cellId,
                     );

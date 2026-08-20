@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -9,6 +9,10 @@ import { DonutPercentageLabels } from "@/components/ui/DonutPercentageLabels";
 import { SHARED_DONUT_GEOMETRY } from "@/components/ui/donutGeometry";
 import { shoppingComposition } from "@/data/fixtures/interaction.fixture";
 import type { ShoppingCompositionMetric } from "@/data/contracts/dashboard";
+import {
+  announceAnalyticalTooltip,
+  subscribeToOtherAnalyticalTooltips,
+} from "@/lib/interaction/analytical-tooltip";
 
 type CompositionView = "orders" | "revenue";
 const compositionOptions = [
@@ -65,7 +69,9 @@ function CompositionDonut({
   return (
     <div
       className="relative h-[200px] w-[230px] max-w-full shrink-0"
-      onClick={() => onSelect(null)}
+      onClick={() => {
+        if (window.matchMedia("(hover: none)").matches) onSelect(null);
+      }}
     >
       <svg
         viewBox={`0 0 ${SHARED_DONUT_GEOMETRY.canvasWidth} ${SHARED_DONUT_GEOMETRY.canvasHeight}`}
@@ -105,7 +111,7 @@ function CompositionDonut({
               strokeDashoffset={-offset * circumference}
               transform={`rotate(-90 ${SHARED_DONUT_GEOMETRY.centerX} ${SHARED_DONUT_GEOMETRY.centerY})`}
               opacity={activeId && !isActive ? 0.45 : 1}
-              className="cursor-pointer transition-[stroke-width,opacity] duration-200 focus:outline-none motion-reduce:transition-none"
+              className="cursor-default transition-[stroke-width,opacity] duration-200 focus:outline-none motion-reduce:transition-none"
               role="button"
               tabIndex={0}
               aria-pressed={selected === item.type}
@@ -116,7 +122,8 @@ function CompositionDonut({
               onBlur={() => onHover(null)}
               onClick={(event) => {
                 event.stopPropagation();
-                onSelect(selected === item.type ? null : item.type);
+                if (window.matchMedia("(hover: none)").matches)
+                  onSelect(selected === item.type ? null : item.type);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -124,9 +131,7 @@ function CompositionDonut({
                   onSelect(selected === item.type ? null : item.type);
                 }
               }}
-            >
-              <title>{`${shoppingName(item.type)}: ${detail(item)} · ${percentFormat.format(value)}`}</title>
-            </circle>
+            />
           );
         })}
         <DonutPercentageLabels
@@ -179,8 +184,59 @@ export function ShoppingTrendsSection() {
   const [compositionHovered, setCompositionHovered] = useState<string | null>(
     null,
   );
+  const sectionRef = useRef<HTMLElement>(null);
+  const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showCompositionDetail = (id: string | null) => {
+    if (hoverHideTimer.current) {
+      clearTimeout(hoverHideTimer.current);
+      hoverHideTimer.current = null;
+    }
+    if (id) {
+      announceAnalyticalTooltip("product-type-sold");
+      setCompositionHovered(id);
+      return;
+    }
+    hoverHideTimer.current = setTimeout(
+      () => setCompositionHovered(null),
+      180,
+    );
+  };
+  const selectCompositionDetail = (id: string | null) => {
+    if (id) announceAnalyticalTooltip("product-type-sold");
+    setCompositionSelected(id);
+  };
+  useEffect(
+    () =>
+      subscribeToOtherAnalyticalTooltips("product-type-sold", () => {
+        if (hoverHideTimer.current) {
+          clearTimeout(hoverHideTimer.current);
+          hoverHideTimer.current = null;
+        }
+        setCompositionHovered(null);
+        setCompositionSelected(null);
+      }),
+    [],
+  );
+  useEffect(
+    () => () => {
+      if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
+    },
+  );
+  useEffect(() => {
+    if (!compositionSelected) return;
+    const closeTouchDetail = (event: PointerEvent) => {
+      if (sectionRef.current?.contains(event.target as Node)) return;
+      setCompositionSelected(null);
+      setCompositionHovered(null);
+    };
+    document.addEventListener("pointerdown", closeTouchDetail);
+    return () => document.removeEventListener("pointerdown", closeTouchDetail);
+  }, [compositionSelected]);
   return (
-    <section className="flex min-w-0 flex-col min-[900px]:h-full">
+    <section
+      ref={sectionRef}
+      className="flex min-w-0 flex-col min-[900px]:h-full"
+    >
       <div className="min-[900px]:min-h-[92px]">
         <SectionHeading
           title="03. Product Type Sold"
@@ -220,8 +276,8 @@ export function ShoppingTrendsSection() {
               mode={compositionView}
               selected={compositionSelected}
               hovered={compositionHovered}
-              onSelect={setCompositionSelected}
-              onHover={setCompositionHovered}
+              onSelect={selectCompositionDetail}
+              onHover={showCompositionDetail}
             />
             <div className="flex w-[132px] shrink-0 flex-col gap-2.5">
               {shoppingComposition.map((item, index) => (

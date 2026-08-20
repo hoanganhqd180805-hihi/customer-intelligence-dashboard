@@ -26,7 +26,7 @@ export function Disclosure({
         type="button"
         aria-expanded={expanded}
         onClick={onToggle}
-        className="inline-flex items-center gap-1.5 text-[11px] text-[#3b82f6] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b82f6]"
+        className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-[#3b82f6] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b82f6]"
       >
         {expanded ? (expandedLabel ?? collapsedLabel) : collapsedLabel}
         <span

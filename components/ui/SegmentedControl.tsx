@@ -33,7 +33,7 @@ export function SegmentedControl<T extends string>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(option.value)}
-            className={`rounded-lg px-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b82f6] ${active ? "bg-[#3b82f6] text-white" : "text-[#666] hover:text-[#333]"}`}
+            className={`cursor-pointer rounded-lg px-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b82f6] ${active ? "bg-[#3b82f6] text-white" : "text-[#666] hover:text-[#333]"}`}
           >
             {option.label}
           </button>
