@@ -11,7 +11,7 @@ export interface RawCustomerTypeResponse {
 export interface RawPurchaseTimeResponse {
   time_slots: string[];
   weekdays: Weekday[];
-  time_slot_totals: Array<{ weekday: Weekday; time_slot: string; total_orders: number }> | null;
+  time_slot_totals: Array<{ weekday: Weekday; time_slot: string; total_orders: number; total_revenue: number | null }> | null;
   weekday_totals: Array<{ weekday: Weekday; total_orders: number }> | null;
   omitted_combination_means_zero: boolean;
 }

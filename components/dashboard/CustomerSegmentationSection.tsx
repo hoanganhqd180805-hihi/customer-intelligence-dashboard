@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { DonutPercentageLabels } from "@/components/ui/DonutPercentageLabels";
+import { SHARED_DONUT_GEOMETRY } from "@/components/ui/donutGeometry";
 
 type SegmentMode = "customers" | "revenue";
 const countFormat = new Intl.NumberFormat("en-US");
@@ -21,8 +22,8 @@ const percentFormat = new Intl.NumberFormat("en-US", {
   style: "percent",
   maximumFractionDigits: 1,
 });
-const radius = 68,
-  circumference = 2 * Math.PI * radius;
+const circumference =
+  2 * Math.PI * SHARED_DONUT_GEOMETRY.centerlineRadius;
 const segmentNames: Record<string, string> = {
   "Ngủ đông": "Dormant",
   "Khách mới": "New Customers",
@@ -60,11 +61,11 @@ function SegmentationDonut({
   const active = data.segments.find((segment) => segment.id === activeId);
   return (
     <div
-      className="relative mx-auto h-[220px] w-[280px] max-w-full shrink-0"
+      className="relative h-[200px] w-[230px] max-w-full shrink-0"
       onClick={() => onSelect(null)}
     >
       <svg
-        viewBox="0 0 260 220"
+        viewBox={`0 0 ${SHARED_DONUT_GEOMETRY.canvasWidth} ${SHARED_DONUT_GEOMETRY.canvasHeight}`}
         role="img"
         aria-label={
           mode === "customers"
@@ -74,12 +75,12 @@ function SegmentationDonut({
         className="h-full w-full overflow-visible"
       >
         <circle
-          cx="130"
-          cy="110"
-          r={radius}
+          cx={SHARED_DONUT_GEOMETRY.centerX}
+          cy={SHARED_DONUT_GEOMETRY.centerY}
+          r={SHARED_DONUT_GEOMETRY.centerlineRadius}
           fill="none"
           stroke="#edf0f5"
-          strokeWidth="28"
+          strokeWidth={SHARED_DONUT_GEOMETRY.ringThickness}
         />
         {arcs.map(({ segment, share, offset }) => {
           const dash = Math.max(0, share * circumference),
@@ -87,15 +88,19 @@ function SegmentationDonut({
           return (
             <circle
               key={segment.id}
-              cx="130"
-              cy="110"
-              r={radius}
+              cx={SHARED_DONUT_GEOMETRY.centerX}
+              cy={SHARED_DONUT_GEOMETRY.centerY}
+              r={SHARED_DONUT_GEOMETRY.centerlineRadius}
               fill="none"
               stroke={segment.color}
-              strokeWidth={activeId === segment.id ? 31 : 28}
+              strokeWidth={
+                activeId === segment.id
+                  ? SHARED_DONUT_GEOMETRY.activeRingThickness
+                  : SHARED_DONUT_GEOMETRY.ringThickness
+              }
               strokeDasharray={`${dash} ${Math.max(0, circumference - dash)}`}
               strokeDashoffset={dashOffset}
-              transform="rotate(-90 130 110)"
+              transform={`rotate(-90 ${SHARED_DONUT_GEOMETRY.centerX} ${SHARED_DONUT_GEOMETRY.centerY})`}
               strokeLinecap="butt"
               className="cursor-pointer transition-[stroke-dasharray,stroke-dashoffset,stroke-width,opacity] duration-300 ease-out focus:outline-none motion-reduce:transition-none"
               opacity={activeId ? (activeId === segment.id ? 1 : 0.48) : 1}
@@ -136,15 +141,21 @@ function SegmentationDonut({
             share,
             color: segment.color,
           }))}
-          cx={130}
-          cy={110}
-          radius={82}
+          cx={SHARED_DONUT_GEOMETRY.centerX}
+          cy={SHARED_DONUT_GEOMETRY.centerY}
+          radius={SHARED_DONUT_GEOMETRY.percentageLabelRadius}
           labelOffset={10}
           minimumShare={0.05}
           format={(share) => percentFormat.format(share)}
         />
       </svg>
-      <div className="pointer-events-none absolute left-1/2 top-1/2 flex h-[112px] w-[112px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center text-center">
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center text-center"
+        style={{
+          width: SHARED_DONUT_GEOMETRY.centerDiameter,
+          height: SHARED_DONUT_GEOMETRY.centerDiameter,
+        }}
+      >
         <span className="max-w-[118px] text-[10.5px] font-medium leading-tight text-[#596273]">
           {active
             ? segmentName(active.segment)
@@ -191,14 +202,14 @@ export function CustomerSegmentationSection({
     [hovered, setHovered] = useState<string | null>(null),
     [selected, setSelected] = useState<string | null>(null);
   return (
-    <section className="flex min-w-0 flex-col min-[1050px]:h-full">
-      <div className="min-[1050px]:min-h-[74px]">
+    <section className="flex min-w-0 flex-col min-[900px]:h-full">
+      <div className="min-[900px]:min-h-[92px]">
         <SectionHeading
-          title="03. Customer Segmentation"
+          title="01. Customer Segmentation"
           subtitle="Group customers by purchase behavior and contribution value to support retention and growth."
         />
       </div>
-      <Card className="flex min-h-[380px] flex-1 flex-col px-3.5 pb-2.5 pt-2.5 min-[1050px]:min-h-[420px]">
+      <Card className="flex min-h-[380px] flex-1 flex-col px-3.5 pb-2.5 pt-2.5 min-[900px]:h-[430px] min-[900px]:min-h-[430px]">
         <header>
           <h3 className="text-[16px] font-semibold text-[#172033]">
             Segment Distribution
@@ -222,7 +233,7 @@ export function CustomerSegmentationSection({
             />
           </div>
         </header>
-        <div className="mt-2 grid flex-1 grid-cols-[minmax(0,58fr)_minmax(0,42fr)] items-center gap-1 max-[560px]:grid-cols-1">
+        <div className="mx-auto mt-2 flex w-full flex-1 items-center justify-center gap-7 max-[560px]:flex-col max-[560px]:gap-2">
           <SegmentationDonut
             data={data}
             mode={mode}
@@ -231,7 +242,7 @@ export function CustomerSegmentationSection({
             onHover={setHovered}
             onSelect={setSelected}
           />
-          <div className="min-w-0 space-y-0.5">
+          <div className="w-[132px] shrink-0 space-y-0.5">
             {data.segments.map((segment) => {
               return (
                 <div

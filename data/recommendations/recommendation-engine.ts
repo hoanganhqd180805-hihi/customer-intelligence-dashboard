@@ -1,9 +1,9 @@
 import type { RecommendationData } from "@/data/contracts/dashboard";
-import { channelPerformanceDataset } from "@/data/fixtures/channel-performance.fixture";
+import { journeyConversionWowByStep } from "@/data/fixtures/journey-comparison.fixture";
 import { customerSegmentationDataset } from "@/data/fixtures/customer-segmentation-workbook.fixture";
 import { journeyLinks, journeyNodes } from "@/data/fixtures/journey.fixture";
-import { rawCancellationWorkbookFixture } from "@/data/fixtures/section02-workbook.fixture";
-import { rawOverviewApiFixture } from "@/data/fixtures/overview-api.fixture";
+import { rawPurchaseTimeFixture } from "@/data/fixtures/section-api.fixture";
+import { shoppingComposition } from "@/data/fixtures/shopping-composition.fixture";
 
 const percent = new Intl.NumberFormat("en-US", {
   style: "percent",
@@ -14,17 +14,41 @@ const money = new Intl.NumberFormat("en-US", {
   notation: "compact",
   maximumFractionDigits: 1,
 });
+const list = new Intl.ListFormat("en-US", {
+  style: "long",
+  type: "conjunction",
+});
 const severity = (priority: number): RecommendationData["severity"] =>
   priority >= 85 ? "high" : priority >= 70 ? "medium" : "low";
 const node = (label: string) =>
   journeyNodes.find((item) => item.label === label)!;
 const link = (source: string, target: string) =>
   journeyLinks.find(
-    (item) =>
-      item.source === node(source).id && item.target === node(target).id,
+    (item) => item.source === node(source).id && item.target === node(target).id,
   )!;
-const numericRate = (source: string, target: string) =>
-  Number.parseFloat(link(source, target).label) / 100;
+const stageNodeTotal = (stage: string) =>
+  journeyNodes
+    .filter((item) => item.stage === stage)
+    .reduce((sum, item) => sum + item.value, 0);
+const stageLinkTotal = (sourceStage: string, targetStage: string) => {
+  const sourceIds = new Set(
+      journeyNodes
+        .filter((item) => item.stage === sourceStage)
+        .map((item) => item.id),
+    ),
+    targetIds = new Set(
+      journeyNodes
+        .filter((item) => item.stage === targetStage)
+        .map((item) => item.id),
+    );
+  return journeyLinks
+    .filter(
+      (item) => sourceIds.has(item.source) && targetIds.has(item.target),
+    )
+    .reduce((sum, item) => sum + item.value, 0);
+};
+const ratio = (numerator: number, denominator: number) =>
+  denominator > 0 ? numerator / denominator : 0;
 const segmentName = (value: string) =>
   ({
     "Ngủ đông": "Dormant",
@@ -34,169 +58,277 @@ const segmentName = (value: string) =>
     "Nguy cơ rời bỏ": "At Risk",
     VIP: "VIP",
   })[value] ?? value;
+const weekdayName = (value: string) =>
+  ({
+    "Thứ Hai": "Monday",
+    "Thứ Ba": "Tuesday",
+    "Thứ Tư": "Wednesday",
+    "Thứ Năm": "Thursday",
+    "Thứ Sáu": "Friday",
+    "Thứ Bảy": "Saturday",
+    "Chủ Nhật": "Sunday",
+  })[value] ?? value;
+const shoppingName = (value: string) =>
+  ({ Combo: "Bundle", "Bán lẻ": "Single-item", "Hỗn hợp": "Mixed" })[
+    value
+  ] ?? value;
+
+interface JourneyRecommendationMetric {
+  step: keyof typeof journeyConversionWowByStep;
+  conversionRate: number;
+  dropoffRate: number;
+  conversionWow: number;
+  dropoffWow: number;
+}
+
+function getJourneyRecommendationMetrics(): JourneyRecommendationMetric[] {
+  const sources = [
+    {
+      step: "Platform → Content",
+      converted: stageLinkTotal("MARKETPLACE", "CONTENT / ENTRY DRIVER"),
+      entered: stageNodeTotal("MARKETPLACE"),
+    },
+    {
+      step: "Content → Product View",
+      converted: stageLinkTotal("CONTENT / ENTRY DRIVER", "PRODUCT VIEW"),
+      entered: stageNodeTotal("CONTENT / ENTRY DRIVER"),
+    },
+    {
+      step: "Product View → Add to Cart",
+      converted: link("Product View", "Add to Cart").value,
+      entered: node("Product View").value,
+    },
+    {
+      step: "Add to Cart → Order",
+      converted: link("Add to Cart", "Order").value,
+      entered: node("Add to Cart").value,
+    },
+    {
+      step: "Order → Complete",
+      converted: link("Order", "Complete").value,
+      entered: node("Order").value,
+    },
+  ] as const;
+
+  return sources.map(({ step, converted, entered }) => {
+    const conversionRate = ratio(converted, entered),
+      conversionWow = journeyConversionWowByStep[step];
+    return {
+      step,
+      conversionRate,
+      dropoffRate: 1 - conversionRate,
+      conversionWow,
+      dropoffWow: -conversionWow,
+    };
+  });
+}
 
 export function generateRecommendations(): RecommendationData[] {
-  const ads = channelPerformanceDataset.channels.find(
-    (row) => row.channel === "Ads",
-  )!;
-  const highValueSegment = [...customerSegmentationDataset.segments].sort(
-    (a, b) =>
-      b.revenueShare - b.customerShare - (a.revenueShare - a.customerShare),
+  const biggestDropoff = [...getJourneyRecommendationMetrics()].sort(
+    (a, b) => b.dropoffRate - a.dropoffRate,
   )[0];
-  const displaySegment = segmentName(highValueSegment.segment);
-  const topCancellation = [...rawCancellationWorkbookFixture.reasons].sort(
-    (a, b) => b.lost_revenue - a.lost_revenue,
+  const dropoffDirection =
+    biggestDropoff.dropoffWow > 0
+      ? "worsened"
+      : biggestDropoff.dropoffWow < 0
+        ? "improved"
+        : "was unchanged";
+  const dropoffWowValue = `${Math.abs(biggestDropoff.dropoffWow).toFixed(1)} pp`;
+  const dropoffWowSignal = `${biggestDropoff.dropoffWow > 0 ? "↑" : biggestDropoff.dropoffWow < 0 ? "↓" : "—"} ${dropoffWowValue}`;
+
+  const retentionNames = new Set(["Ngủ đông", "Nguy cơ rời bỏ"]);
+  const retentionSegments = customerSegmentationDataset.segments.filter(
+    (segment) => retentionNames.has(segment.segment),
+  );
+  const supportedRetentionSegments =
+    retentionSegments.length > 0
+      ? retentionSegments
+      : [
+          [...customerSegmentationDataset.segments].sort(
+            (a, b) => b.revenue - a.revenue,
+          )[0],
+        ];
+  const retentionLabels = supportedRetentionSegments.map((segment) =>
+    segmentName(segment.segment),
+  );
+  const retentionCustomerCount = supportedRetentionSegments.reduce(
+    (sum, segment) => sum + segment.customerCount,
+    0,
+  );
+  const retentionCustomerShare = supportedRetentionSegments.reduce(
+    (sum, segment) => sum + segment.customerShare,
+    0,
+  );
+  const retentionRevenue = supportedRetentionSegments.reduce(
+    (sum, segment) => sum + segment.revenue,
+    0,
+  );
+  const retentionRevenueShare = supportedRetentionSegments.reduce(
+    (sum, segment) => sum + segment.revenueShare,
+    0,
+  );
+  const retentionTarget = `${list.format(retentionLabels)} customers`;
+  const retentionCustomerSignal = `${integer.format(retentionCustomerCount)} customers · ${percent.format(retentionCustomerShare)}`;
+  const retentionCustomerNarrative = `${integer.format(retentionCustomerCount)} customers (${percent.format(retentionCustomerShare)})`;
+
+  const purchaseRows = rawPurchaseTimeFixture.time_slot_totals ?? [];
+  const peakOrders = Math.max(
+    0,
+    ...purchaseRows.map((row) => row.total_orders),
+  );
+  const peakRows = purchaseRows.filter(
+    (row) => row.total_orders === peakOrders && peakOrders > 0,
+  );
+  const peakDays = [
+    ...new Set(peakRows.map((row) => weekdayName(row.weekday))),
+  ];
+  const peakSlots = [...new Set(peakRows.map((row) => row.time_slot))];
+  const peakDayLabel = list.format(peakDays);
+  const peakSlotLabel = list.format(peakSlots);
+  const peakWindow = `${peakDayLabel} · ${peakSlotLabel}`;
+  const peakOrderSignal = `${integer.format(peakOrders)} orders${peakRows.length > 1 ? " each" : ""}`;
+
+  const dominantPurchaseType = [...shoppingComposition].sort(
+    (a, b) => b.orderShare - a.orderShare,
   )[0];
-  const adsJourneyRate = numericRate("Ads", "Product View");
-  const adsDrop = 1 - adsJourneyRate;
-  const cancellationRate = rawOverviewApiFixture.cancellation_rate ?? 0;
-  const shareGap =
-    (highValueSegment.revenueShare - highValueSegment.customerShare) * 100;
+  const dominantPurchaseLabel = shoppingName(dominantPurchaseType.type);
+
   const items: RecommendationData[] = [
     {
       id: "journey-conversion",
       category: "Conversion",
       status: "Action Required",
-      priority: Math.round(85 + adsDrop * 10),
+      priority: 94,
       severity: "high",
-      signal: `Ads generate ${integer.format(link("Ads", "Product View").value)} Product Views, but the transition rate is only ${percent.format(adsJourneyRate)}.`,
-      title: "Reduce Friction Before Product View",
+      signal: `This step has the highest current drop-off at ${percent.format(biggestDropoff.dropoffRate)} and ${dropoffDirection} by ${dropoffWowValue} versus last week.`,
+      title: biggestDropoff.step,
       action:
-        "Review product links, CTAs, offers, and the Ads landing experience before increasing traffic.",
-      relationship: `Ads → Product View loses ${percent.format(adsDrop)} of activity based on the Journey rate.`,
+        "Review content placement, product links, CTAs, offers, and landing experience.",
+      relationship: `${biggestDropoff.step} converts at ${percent.format(biggestDropoff.conversionRate)} and drops off at ${percent.format(biggestDropoff.dropoffRate)}.`,
       rationale:
-        "This is the largest drop-off among the primary transitions, so improving it can expand volume throughout downstream conversion stages.",
-      description:
-        "Review product links, CTAs, offers, and the Ads landing experience before increasing traffic.",
-      reason:
-        "Ads → Product View is the largest current Customer Journey drop-off.",
+        "This is the highest observed drop-off among the five Customer Journey transitions.",
+      description: `Review content placement, product links, CTAs, offers, and landing experience for ${biggestDropoff.step}.`,
+      reason: `${biggestDropoff.step} is the largest current Customer Journey drop-off.`,
       evidence: [
         {
-          metric: "Ads Activity",
-          value: integer.format(ads.activity),
-          relationship: "Marketplace activity allocated to Ads",
+          metric: "Conversion Rate",
+          value: percent.format(biggestDropoff.conversionRate),
+          relationship: biggestDropoff.step,
         },
         {
-          metric: "Product Views",
-          value: integer.format(ads.productViews),
-          relationship: "Downstream result from Ads",
+          metric: "Drop-off Rate",
+          value: percent.format(biggestDropoff.dropoffRate),
+          relationship: "Highest current Journey drop-off",
         },
         {
-          metric: "Ads → Product View",
-          value: percent.format(adsJourneyRate),
-          relationship: "Rate supplied by the Sankey workbook",
+          metric: "WoW Change",
+          value: dropoffWowSignal,
+          relationship: "Percentage-point change in drop-off rate",
         },
       ],
     },
     {
-      id: "channel-efficiency",
-      category: "Channel Effectiveness",
-      status: "Optimization Priority",
-      priority: 88,
+      id: "segment-retention",
+      category: "Retention",
+      status: "Revenue Protection",
+      priority: 90,
       severity: "high",
-      signal: `Ads have the highest activity, but their ${percent.format(ads.conversionRate!)} CVR is below the ${percent.format(ads.benchmark!)} Content median.`,
-      title: "Optimize Ads Before Scaling Traffic",
-      action:
-        "Check tracking, product links, CTAs, placements, targeting, and content relevance for each Marketplace source.",
-      relationship: `${integer.format(ads.activity)} activities generate ${integer.format(ads.productViews)} Product Views; performance is below the ${percent.format(ads.benchmark!)} relative benchmark.`,
+      signal: `Together, these segments represent ${retentionCustomerNarrative} and contribute ${percent.format(retentionRevenueShare)} of revenue.`,
+      title: retentionTarget,
+      action: "Test targeted incentives and repurchase reminders.",
+      relationship: `${retentionLabels.join(" and ")} account for ${money.format(retentionRevenue)} ₫ in current revenue contribution.`,
       rationale:
-        "A high-volume channel performing below the median offers broad optimization potential without requiring assumptions about the underlying cause.",
-      description:
-        "Check tracking, product links, CTAs, placements, targeting, and content relevance for each Marketplace source.",
-      reason:
-        "Ads have the highest Content activity but a CVR below the current benchmark.",
+        "These retention-oriented segments have the largest combined customer and revenue exposure available in the segmentation analysis.",
+      description: `Test targeted incentives and repurchase reminders for ${retentionTarget}.`,
+      reason: `${retentionTarget} account for ${percent.format(retentionRevenueShare)} of revenue.`,
       evidence: [
         {
-          metric: "Activity",
-          value: integer.format(ads.activity),
-          relationship: "Total Marketplace → Ads",
+          metric: "Customer Segments",
+          value: list.format(retentionLabels),
+          relationship: "Retention-oriented segments",
         },
-        {
-          metric: "Product Views",
-          value: integer.format(ads.productViews),
-          relationship: "Ads → Product View",
-        },
-        {
-          metric: "CVR / Median",
-          value: `${percent.format(ads.conversionRate!)} / ${percent.format(ads.benchmark!)}`,
-          relationship: "Comparison with the median for active Content",
-        },
-      ],
-    },
-    {
-      id: "cancellation-impact",
-      category: "Operations",
-      status: "Monitor Closely",
-      priority: 82,
-      severity: "medium",
-      signal: `The ${percent.format(cancellationRate)} cancellation rate is associated with ${money.format(rawCancellationWorkbookFixture.total_lost_revenue)} ₫ in revenue loss.`,
-      title: "Prioritize the Highest-Impact Cancellation Reason",
-      action:
-        "Review the order-modification process and provide guidance for color, size, address, or voucher changes before customers cancel.",
-      relationship: `“${topCancellation.reason}” causes ${topCancellation.cancelled_orders} cancellations and ${money.format(topCancellation.lost_revenue)} ₫ in revenue loss.`,
-      rationale:
-        "Prioritizing revenue loss focuses remediation on financial impact rather than cancellation volume alone.",
-      description:
-        "Review the order-modification process and provide guidance before customers cancel.",
-      reason:
-        "The leading reason has both the highest cancellation count and revenue loss.",
-      evidence: [
-        {
-          metric: "Cancellation Rate",
-          value: percent.format(cancellationRate),
-          relationship: "Cancelled orders / total created orders",
-        },
-        {
-          metric: "Revenue Loss",
-          value: `${money.format(rawCancellationWorkbookFixture.total_lost_revenue)} ₫`,
-          relationship: "Total revenue across cancellation-reason groups",
-        },
-        {
-          metric: "Top Reason",
-          value: `${money.format(topCancellation.lost_revenue)} ₫`,
-          relationship: topCancellation.reason,
-        },
-      ],
-    },
-    {
-      id: "segment-value",
-      category: "Customer Segmentation",
-      status: "Value Opportunity",
-      priority: 76,
-      severity: "medium",
-      signal: `${displaySegment} customers represent ${percent.format(highValueSegment.customerShare)} of customers but contribute ${percent.format(highValueSegment.revenueShare)} of revenue.`,
-      title: `Increase Value Conversion from ${displaySegment}`,
-      action:
-        "Test repurchase reminders, bundles, or next-purchase offers and measure subsequent revenue per customer.",
-      relationship: `Revenue share exceeds customer share${shareGap < 1 ? "" : ` by ${shareGap.toFixed(1)} percentage points`}.`,
-      rationale:
-        "A small segment with relatively high revenue contribution is a suitable signal for controlled retention and upsell experiments.",
-      description:
-        "Test repurchase reminders, bundles, or next-purchase offers.",
-      reason: "The segment’s revenue share exceeds its customer share.",
-      evidence: [
         {
           metric: "Customers",
-          value: integer.format(highValueSegment.customerCount),
-          relationship: percent.format(highValueSegment.customerShare),
+          value: retentionCustomerSignal,
+          relationship: "Combined customer count and share",
         },
         {
-          metric: "Revenue",
-          value: `${money.format(highValueSegment.revenue)} ₫`,
-          relationship: percent.format(highValueSegment.revenueShare),
+          metric: "Revenue Contribution",
+          value: percent.format(retentionRevenueShare),
+          relationship: `${money.format(retentionRevenue)} ₫`,
+        },
+      ],
+    },
+    {
+      id: "purchase-timing",
+      category: "Purchase Timing",
+      status: "Timing Opportunity",
+      priority: 80,
+      severity: "medium",
+      signal: `This window reaches the heatmap's joint peak of ${peakOrderSignal}.`,
+      title: peakWindow,
+      action: "Prioritize campaigns, vouchers, and promotional activity.",
+      relationship: `${peakWindow} has the highest order count in the current heatmap.`,
+      rationale:
+        "The recommendation targets the observed peak purchasing window without assuming why it performs best.",
+      description: `Prioritize campaigns, vouchers, and promotional activity during ${peakWindow}.`,
+      reason: `${peakWindow} is the current heatmap peak with ${peakOrderSignal}.`,
+      evidence: [
+        {
+          metric: "Peak Day",
+          value: peakDayLabel,
+          relationship: "Highest heatmap cell",
         },
         {
-          metric: "Share Difference",
-          value: `${shareGap.toFixed(1)} pp`,
-          relationship: "Revenue share minus customer share",
+          metric: "Peak Time Slot",
+          value: peakSlotLabel,
+          relationship: "Highest heatmap cell",
+        },
+        {
+          metric: "Peak Orders",
+          value: peakOrderSignal,
+          relationship: "Orders per peak cell",
+        },
+      ],
+    },
+    {
+      id: "shopping-behavior",
+      category: "Shopping Behavior",
+      status: "Purchase Mix Opportunity",
+      priority: 75,
+      severity: "medium",
+      signal: `${dominantPurchaseLabel} purchases lead the current mix with ${percent.format(dominantPurchaseType.orderShare)} of orders and ${percent.format(dominantPurchaseType.revenueShare)} of revenue.`,
+      title: `${dominantPurchaseLabel} offers`,
+      action: "Prioritize visibility and conversion tests.",
+      relationship: `${dominantPurchaseLabel} is the largest purchase type by order share and revenue contribution.`,
+      rationale:
+        "The recommendation follows the dominant observed purchase type instead of assuming a bundle opportunity.",
+      description: `Prioritize visibility and conversion tests for ${dominantPurchaseLabel} offers.`,
+      reason: `${dominantPurchaseLabel} leads both order share and revenue contribution.`,
+      evidence: [
+        {
+          metric: "Dominant Type",
+          value: dominantPurchaseLabel,
+          relationship: "Largest order share",
+        },
+        {
+          metric: "Order Share",
+          value: percent.format(dominantPurchaseType.orderShare),
+          relationship: `${integer.format(dominantPurchaseType.orderCount)} orders`,
+        },
+        {
+          metric: "Revenue Contribution",
+          value: percent.format(dominantPurchaseType.revenueShare),
+          relationship: `${money.format(dominantPurchaseType.revenue)} ₫`,
         },
       ],
     },
   ];
-  return items
-    .map((item) => ({ ...item, severity: severity(item.priority) }))
-    .sort((a, b) => b.priority - a.priority)
-    .slice(0, 4);
+
+  return items.map((item) => ({
+    ...item,
+    severity: severity(item.priority),
+  }));
 }
 
 export const recommendations = generateRecommendations();

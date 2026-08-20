@@ -16,16 +16,21 @@ export function adaptPurchaseTimeResponse(
   const timeSlotTotals: PurchaseTimeSlotTotal[] =
     raw.omitted_combination_means_zero
       ? raw.weekdays.flatMap((weekday) =>
-          raw.time_slots.map((slot) => ({
-            weekday,
-            slot,
-            totalOrders: supplied.get(`${weekday}:${slot}`)?.total_orders ?? 0,
-          })),
+          raw.time_slots.map((slot) => {
+            const row = supplied.get(`${weekday}:${slot}`);
+            return {
+              weekday,
+              slot,
+              totalOrders: row?.total_orders ?? 0,
+              revenue: row ? row.total_revenue : 0,
+            };
+          }),
         )
       : raw.time_slot_totals.map((row) => ({
           weekday: row.weekday,
           slot: row.time_slot,
           totalOrders: row.total_orders,
+          revenue: row.total_revenue,
         }));
   const weekdayOrder = new Map(
     raw.weekdays.map((weekday, index) => [weekday, index]),

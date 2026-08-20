@@ -1,17 +1,12 @@
-import type { ProductPairRow, ProductPerformanceRow, PurchaseTimeSlotTotal, ShoppingCompositionMetric, Weekday, WeekdayOrderTotal } from "@/data/contracts/dashboard";
+import type { ProductPairRow, ProductPerformanceRow, PurchaseTimeSlotTotal, Weekday, WeekdayOrderTotal } from "@/data/contracts/dashboard";
+export { shoppingComposition } from "./shopping-composition.fixture";
 export { recommendations } from "@/data/recommendations/recommendation-engine";
 
 export const weekdays: Weekday[] = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"];
 export const timeSlots = ["00:00 - 05:59", "06:00 - 08:59", "09:00 - 11:59", "12:00 - 14:59", "15:00 - 17:59", "18:00 - 23:59"];
 const timeValues = [[22,7,10,7,12,10],[26,14,10,17,11,11],[30,25,6,10,11,5],[22,7,9,13,5,8],[30,15,10,15,4,6],[19,10,6,11,12,7],[24,10,19,8,11,5]];
-export const purchaseTimeSlots: PurchaseTimeSlotTotal[] = weekdays.flatMap((weekday, row) => timeSlots.map((slot, col) => ({ weekday, slot, totalOrders: timeValues[row][col] })));
+export const purchaseTimeSlots: PurchaseTimeSlotTotal[] = weekdays.flatMap((weekday, row) => timeSlots.map((slot, col) => ({ weekday, slot, totalOrders: timeValues[row][col], revenue: null })));
 export const weekdayOrders: WeekdayOrderTotal[] = [68,89,87,64,80,65,77].map((totalOrders, index) => ({ weekday: weekdays[index], totalOrders }));
-
-export const shoppingComposition: ShoppingCompositionMetric[] = [
-  { type: "Combo", orderCount: 80, orderShare: 0.3238866397, revenue: 11_545_411, revenueShare: 0.3837 },
-  { type: "Bán lẻ", orderCount: 137, orderShare: 0.5546558704, revenue: 13_507_069, revenueShare: 0.4489 },
-  { type: "Hỗn hợp", orderCount: 30, orderShare: 0.1214574899, revenue: 5_034_040, revenueShare: 0.1673 },
-];
 
 export const products: ProductPerformanceRow[] = [
   { rank:1, productType:"retail", itemId:"15584241449", itemName:"Kẹo Mayora Cà Phê Kopiko 560G", totalQuantitySold:15, totalOrders:14, productSales:1_350_000 },

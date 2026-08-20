@@ -93,6 +93,7 @@ export function adaptDashboardResponse(
         weekday: row.weekday,
         slot: row.slot,
         totalOrders: row.total_orders,
+        revenue: row.total_revenue,
       })),
       weekdayTotals: raw.purchase_cancellation.weekday_totals.map((row) => ({
         weekday: row.weekday,

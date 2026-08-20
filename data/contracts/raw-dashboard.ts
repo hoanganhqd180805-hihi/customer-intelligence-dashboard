@@ -6,7 +6,7 @@ export interface RawOverviewResponse {
 }
 export interface RawCustomerTypeDailyRow { date: string; new_customers: number; returning_customers: number }
 export interface RawCustomerRevenueRow { customer_type: CustomerType; revenue: number | null; revenue_share_pct: number }
-export interface RawPurchaseSlotRow { weekday: Weekday; slot: string; total_orders: number }
+export interface RawPurchaseSlotRow { weekday: Weekday; slot: string; total_orders: number; total_revenue: number | null }
 export interface RawWeekdayOrderRow { weekday: Weekday; total_orders: number }
 export interface RawCancellationReasonRow { reason: string; cancelled_orders: number | null; share_pct: number; lost_revenue: number | null }
 export interface RawShoppingCompositionRow { type: ShoppingType; order_count: number; order_share_pct: number; revenue: number; revenue_share_pct: number }

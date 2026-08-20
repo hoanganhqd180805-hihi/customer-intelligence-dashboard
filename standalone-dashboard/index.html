@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Intelligence Overview</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./script.js" defer></script>
+</head>
+<body>
+  <main class="dashboard">
+    <header class="page-header"><div><p>Customer Intelligence</p><h1>Customer Intelligence Overview</h1></div><div class="date-pill" aria-label="Sample date range">01/05/2026 – 17/05/2026</div></header>
+    <section id="overview" class="kpi-grid" aria-label="Overview"></section>
+    <div class="sections">
+      <section><div class="section-heading"><h2>01. Customer Type Overview</h2><p>New customers, returning customers, and revenue contribution.</p></div><div class="card customer-types"><article><h3>Daily Customer Trend</h3><p>New and returning customer counts</p><div id="customer-trend"></div></article><article><h3>Revenue Composition</h3><p>By Customer Type</p><div id="revenue-donut"></div></article></div></section>
+      <div class="paired-row"><section><div class="section-heading"><h2>02. Purchase Timing</h2><p>When do customers typically place orders?</p></div><div class="card compact"><h3>Purchase Timing</h3><p>When do customers usually purchase?</p><div id="heatmap"></div></div></section><section><div class="section-heading"><h2>03. Customer Segmentation</h2><p>Group customers by purchase behavior and contribution value to support retention and growth.</p></div><div class="card compact"><h3>Segment Distribution</h3><p>Customer distribution and contribution by segment</p><div id="segment-controls" class="segmented" role="radiogroup" aria-label="Customer segmentation metric"></div><div class="donut-layout"><div id="segment-donut"></div><div id="segment-legend" class="legend"></div></div><p class="insight">● <span>Potential customers represent 3.3% of customers but contribute 5.7% of revenue.</span></p></div></section></div>
+      <section><div class="section-heading"><h2>04. Shopping Behavior</h2><p>Basket composition, best-selling products, and bundle opportunities.</p></div><div class="two-col"><div class="card"><div class="card-top"><div><h3>Purchase Mix</h3><p>Bundle, Single-item, and Mixed orders</p></div><div id="mix-controls" class="segmented"></div></div><div class="donut-layout small"><div id="mix-donut"></div><div><div id="mix-legend" class="legend"></div><p id="mix-insight" class="callout"></p></div></div></div><div class="card"><div class="card-top"><div><h3>Best-Selling Products</h3><p>Top products by purchase type</p></div><div id="product-controls" class="segmented"></div></div><ol id="product-list" class="product-list"></ol></div></div><div class="card recommendation-strip"><div><h3>◆ Bundle Recommendations</h3><p>Based on products frequently purchased together</p></div><button id="pair-toggle" aria-expanded="false">5 recommendations ⌄</button><ol id="pair-list" hidden></ol></div></section>
+      <section id="journey" class="journey"><div class="journey-title"><span>05</span> CUSTOMER JOURNEY</div><div id="journey-kpis" class="journey-kpis"></div><div id="sankey-wrap"><svg id="sankey" viewBox="0 0 1820 590" role="img" aria-label="Customer journey chart"></svg><div id="journey-tooltip" class="tooltip" hidden></div></div><div id="dropoffs" class="dropoffs"></div><div id="journey-insights" class="journey-insights"></div></section>
+      <div class="paired-row"><section><div class="section-heading"><h2>06. Channel Effectiveness</h2><p>Evaluate channel utilization and conversion effectiveness by content and platform.</p></div><div class="card compact"><div class="card-top"><div><h3>Channel Performance</h3><p>Activity level and effectiveness in generating Product Views</p></div><div id="channel-controls" class="segmented"></div></div><div id="channel-summary" class="summary"></div><div id="channel-list" class="channel-list"></div></div></section><section><div class="section-heading"><h2>07. Cancellation Analysis</h2><p>Cancellation reasons and associated revenue loss.</p></div><div class="card compact"><div class="card-top"><div><h3>Cancellation Analysis</h3><p>Share by Cancellation Reason</p></div><div id="cancel-controls" class="segmented"></div></div><div id="cancel-list" class="cancel-list"></div><div id="cancel-summary" class="summary-cards"></div></div></section></div>
+      <section class="recommendations"><header><div><p>AI Insights · Customer Intelligence</p><h2>08. Consolidated Recommendations</h2></div><strong>4 Priority Recommendations</strong></header><div id="recommendation-grid"></div></section>
+    </div>
+  </main>
+</body>
+</html>

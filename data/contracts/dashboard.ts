@@ -36,7 +36,7 @@ export interface CustomerRevenueContribution {
 }
 
 export type Weekday = "Thứ Hai" | "Thứ Ba" | "Thứ Tư" | "Thứ Năm" | "Thứ Sáu" | "Thứ Bảy" | "Chủ Nhật";
-export interface PurchaseTimeSlotTotal { weekday: Weekday; slot: string; totalOrders: number }
+export interface PurchaseTimeSlotTotal { weekday: Weekday; slot: string; totalOrders: number; revenue: number | null }
 export interface WeekdayOrderTotal { weekday: Weekday; totalOrders: number }
 export interface PurchaseTimeDataset {
   weekdays: Weekday[];

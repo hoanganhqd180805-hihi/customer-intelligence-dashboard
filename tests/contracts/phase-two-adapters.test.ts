@@ -42,15 +42,17 @@ describe("date-range transport", () => {
 describe("Purchase Time adapter", () => {
   const base = { time_slots:["00–06","06–09"],weekdays:["Thứ Hai","Thứ Ba"] as const,weekday_totals:[{weekday:"Thứ Ba" as const,total_orders:2},{weekday:"Thứ Hai" as const,total_orders:1}] };
   it("keeps missing cells absent when omission is not confirmed as zero", () => {
-    const result = adaptPurchaseTimeResponse({ ...base, weekdays:[...base.weekdays],time_slot_totals:[{weekday:"Thứ Hai",time_slot:"00–06",total_orders:0}],omitted_combination_means_zero:false });
+    const result = adaptPurchaseTimeResponse({ ...base, weekdays:[...base.weekdays],time_slot_totals:[{weekday:"Thứ Hai",time_slot:"00–06",total_orders:0,total_revenue:null}],omitted_combination_means_zero:false });
     expect(result?.timeSlotTotals).toHaveLength(1);
     expect(result?.timeSlotTotals[0].totalOrders).toBe(0);
+    expect(result?.timeSlotTotals[0].revenue).toBeNull();
     expect(result?.weekdayTotals.map((row) => row.weekday)).toEqual(["Thứ Hai","Thứ Ba"]);
   });
   it("completes the grid only when omission is confirmed as zero", () => {
-    const result = adaptPurchaseTimeResponse({ ...base, weekdays:[...base.weekdays],time_slot_totals:[{weekday:"Thứ Hai",time_slot:"00–06",total_orders:1}],omitted_combination_means_zero:true });
+    const result = adaptPurchaseTimeResponse({ ...base, weekdays:[...base.weekdays],time_slot_totals:[{weekday:"Thứ Hai",time_slot:"00–06",total_orders:1,total_revenue:null}],omitted_combination_means_zero:true });
     expect(result?.timeSlotTotals).toHaveLength(4);
     expect(result?.timeSlotTotals.find((row) => row.weekday === "Thứ Ba" && row.slot === "06–09")?.totalOrders).toBe(0);
+    expect(result?.timeSlotTotals.find((row) => row.weekday === "Thứ Ba" && row.slot === "06–09")?.revenue).toBe(0);
   });
 });
 

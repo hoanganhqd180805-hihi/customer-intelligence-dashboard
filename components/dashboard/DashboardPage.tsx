@@ -1,36 +1,42 @@
 import { CustomerJourneySection } from "./CustomerJourneySection";
-import { ChannelPerformanceSection } from "./ChannelPerformanceSection";
-import { CustomerTypesSection } from "./CustomerTypesSection";
 import { CustomerSegmentationSection } from "./CustomerSegmentationSection";
 import { DashboardHeader } from "./DashboardHeader";
-import { OverviewSection } from "./OverviewSection";
-import {
-  CancellationAnalysisSection,
-  PurchaseTimeSection,
-} from "./PurchaseCancellationSection";
 import { RecommendationsSection } from "./RecommendationsSection";
 import { ShoppingTrendsSection } from "./ShoppingTrendsSection";
+import { PurchaseTimingSection } from "./PurchaseTimingSection";
 import { DashboardDateRangeProvider } from "./DashboardDateRangeContext";
+
+const dashboardPartClassName =
+  "rounded-[18px] border border-[#e1e5eb] bg-[#f7f8fa] p-4 transition-[background-color,border-color,box-shadow] duration-200 ease-out hover:border-[#cfd6e1] hover:bg-white hover:shadow-[0_8px_24px_rgba(30,58,95,0.06)] focus-within:border-[#cfd6e1] focus-within:bg-white focus-within:shadow-[0_8px_24px_rgba(30,58,95,0.06)] min-[1280px]:p-5";
 
 export function DashboardPage() {
   return (
     <DashboardDateRangeProvider>
       <main className="mx-auto w-[min(94vw,1600px)] max-w-none px-0 py-16">
         <DashboardHeader />
-        <OverviewSection />
-        <div className="mt-8 space-y-8">
-          <CustomerTypesSection />
-          <div className="grid grid-cols-1 items-start gap-8 min-[1050px]:grid-cols-2 min-[1050px]:items-stretch min-[1050px]:gap-4">
-            <PurchaseTimeSection />
-            <CustomerSegmentationSection />
+        <div className="space-y-7">
+          <div
+            data-dashboard-part="recommendations"
+            className={dashboardPartClassName}
+          >
+            <RecommendationsSection />
           </div>
-          <ShoppingTrendsSection />
-          <CustomerJourneySection />
-          <div className="grid grid-cols-1 items-start gap-4 min-[1050px]:grid-cols-2 min-[1050px]:items-stretch">
-            <ChannelPerformanceSection />
-            <CancellationAnalysisSection />
+          <div
+            data-dashboard-part="customer-analysis"
+            className={dashboardPartClassName}
+          >
+            <div className="grid grid-cols-1 items-stretch gap-4 min-[900px]:grid-cols-2 min-[1420px]:grid-cols-3">
+              <CustomerSegmentationSection />
+              <PurchaseTimingSection />
+              <ShoppingTrendsSection />
+            </div>
           </div>
-          <RecommendationsSection />
+          <div
+            data-dashboard-part="customer-journey"
+            className={dashboardPartClassName}
+          >
+            <CustomerJourneySection />
+          </div>
         </div>
       </main>
     </DashboardDateRangeProvider>

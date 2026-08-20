@@ -25,7 +25,7 @@ export const rawDashboardFixture: RawDashboardResponse = {
   purchase_cancellation: {
     time_slots: timeSlots,
     weekdays,
-    time_slot_totals: purchaseTimeSlots.map((row) => ({ weekday: row.weekday, slot: row.slot, total_orders: row.totalOrders })),
+    time_slot_totals: purchaseTimeSlots.map((row) => ({ weekday: row.weekday, slot: row.slot, total_orders: row.totalOrders, total_revenue: row.revenue })),
     weekday_totals: weekdayOrders.map((row) => ({ weekday: row.weekday, total_orders: row.totalOrders })),
     cancellation_reasons:rawCancellationWorkbookFixture.reasons.map((row)=>({reason:row.reason,share_pct:row.cancelled_orders/totalCancelledOrders*100,cancelled_orders:row.cancelled_orders,lost_revenue:row.lost_revenue})),
     cancellation_lost_revenue:rawCancellationWorkbookFixture.total_lost_revenue,

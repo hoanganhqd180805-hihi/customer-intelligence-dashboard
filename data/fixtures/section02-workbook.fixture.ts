@@ -8,7 +8,7 @@ const timeValues=[[22,7,10,7,12,10],[26,14,10,17,11,11],[30,25,6,10,11,5],[22,7,
 /** Exact extraction from mapping data.xlsx, Customer journey!A29:C82. */
 export const rawPurchaseTimeWorkbookFixture: RawPurchaseTimeResponse={
   weekdays:section02Weekdays,time_slots:section02TimeSlots,
-  time_slot_totals:section02Weekdays.flatMap((weekday,row)=>section02TimeSlots.map((time_slot,column)=>({weekday,time_slot,total_orders:timeValues[row][column]}))),
+  time_slot_totals:section02Weekdays.flatMap((weekday,row)=>section02TimeSlots.map((time_slot,column)=>({weekday,time_slot,total_orders:timeValues[row][column],total_revenue:null}))),
   weekday_totals:[68,89,87,64,80,65,77].map((total_orders,index)=>({weekday:section02Weekdays[index],total_orders})),
   omitted_combination_means_zero:true,
 };
