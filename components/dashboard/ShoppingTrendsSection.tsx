@@ -237,12 +237,7 @@ export function ShoppingTrendsSection() {
       ref={sectionRef}
       className="flex min-w-0 flex-col min-[900px]:h-full"
     >
-      <div className="min-[900px]:min-h-[92px]">
-        <SectionHeading
-          title="03. Product Type Sold"
-          subtitle="Composition of product types sold by order share and revenue."
-        />
-      </div>
+      <SectionHeading title="03. Product Type Sold" />
       <div className="flex flex-1">
         <Card className="flex min-h-[300px] w-full flex-1 flex-col p-3.5 min-[900px]:h-[430px] min-[900px]:min-h-[430px]">
           <div className="flex items-start justify-between gap-3">

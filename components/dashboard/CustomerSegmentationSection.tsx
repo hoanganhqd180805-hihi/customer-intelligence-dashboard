@@ -419,12 +419,7 @@ export function CustomerSegmentationSection({
       ref={sectionRef}
       className="relative flex min-w-0 flex-col min-[900px]:h-full"
     >
-      <div className="min-[900px]:min-h-[92px]">
-        <SectionHeading
-          title="01. Customer Segmentation"
-          subtitle="Group customers by purchase behavior and contribution value to support retention and growth."
-        />
-      </div>
+      <SectionHeading title="01. Customer Segmentation" />
       <Card className="flex min-h-[380px] flex-1 flex-col px-3.5 pb-2.5 pt-2.5 min-[900px]:h-[430px] min-[900px]:min-h-[430px]">
         <header>
           <h3 className="text-[16px] font-semibold text-[#172033]">

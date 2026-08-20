@@ -216,12 +216,7 @@ export function PurchaseTimingSection() {
 
   return (
     <section className="flex min-w-0 flex-col min-[900px]:h-full">
-      <div className="min-[900px]:min-h-[92px]">
-        <SectionHeading
-          title="02. Purchase Timing"
-          subtitle="Identify when customers are most likely to place orders."
-        />
-      </div>
+      <SectionHeading title="02. Purchase Timing" />
       <Card className="flex min-h-[340px] w-full flex-1 flex-col p-3.5 min-[900px]:h-[430px] min-[900px]:min-h-[430px]">
         <div>
           <h3 className="text-[15px] font-semibold">Purchase Timing</h3>
