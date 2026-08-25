@@ -4,12 +4,8 @@ import { useState, type ReactNode } from "react";
 import { CustomerJourneySection } from "./CustomerJourneySection";
 import { CustomerSegmentationSection } from "./CustomerSegmentationSection";
 import { DashboardHeader } from "./DashboardHeader";
-import { RecommendationsSection } from "./RecommendationsSection";
-import { ShoppingTrendsSection } from "./ShoppingTrendsSection";
-import { PurchaseTimingSection } from "./PurchaseTimingSection";
-import { DashboardDateRangeProvider } from "./DashboardDateRangeContext";
 
-type DashboardPartId = "recommendations" | "customer-analysis" | "customer-journey";
+type DashboardPartId = "customer-segmentation" | "customer-journey";
 
 function DashboardPart({
   id,
@@ -47,42 +43,28 @@ export function DashboardPage() {
   const [activePart, setActivePart] = useState<DashboardPartId | null>(null);
 
   return (
-    <DashboardDateRangeProvider>
-      <div className="min-h-screen">
-        <main className="mx-auto w-[min(94vw,1600px)] max-w-none px-0 py-16">
-          <DashboardHeader />
-          <div className="space-y-8">
-            <DashboardPart
-              id="recommendations"
-              active={activePart === "recommendations"}
-              onActivate={() => setActivePart("recommendations")}
-              onDeactivate={() => setActivePart(null)}
-            >
-              <RecommendationsSection />
-            </DashboardPart>
-            <DashboardPart
-              id="customer-analysis"
-              active={activePart === "customer-analysis"}
-              onActivate={() => setActivePart("customer-analysis")}
-              onDeactivate={() => setActivePart(null)}
-            >
-              <div className="grid grid-cols-1 items-stretch gap-4 min-[900px]:grid-cols-2 min-[1420px]:grid-cols-3">
-                <CustomerSegmentationSection />
-                <PurchaseTimingSection />
-                <ShoppingTrendsSection />
-              </div>
-            </DashboardPart>
-            <DashboardPart
-              id="customer-journey"
-              active={activePart === "customer-journey"}
-              onActivate={() => setActivePart("customer-journey")}
-              onDeactivate={() => setActivePart(null)}
-            >
-              <CustomerJourneySection />
-            </DashboardPart>
-          </div>
-        </main>
-      </div>
-    </DashboardDateRangeProvider>
+    <div className="min-h-screen">
+      <main className="mx-auto w-[min(94vw,1600px)] max-w-none px-0 py-16">
+        <DashboardHeader />
+        <div className="space-y-10">
+          <DashboardPart
+            id="customer-segmentation"
+            active={activePart === "customer-segmentation"}
+            onActivate={() => setActivePart("customer-segmentation")}
+            onDeactivate={() => setActivePart(null)}
+          >
+            <CustomerSegmentationSection />
+          </DashboardPart>
+          <DashboardPart
+            id="customer-journey"
+            active={activePart === "customer-journey"}
+            onActivate={() => setActivePart("customer-journey")}
+            onDeactivate={() => setActivePart(null)}
+          >
+            <CustomerJourneySection />
+          </DashboardPart>
+        </div>
+      </main>
+    </div>
   );
 }

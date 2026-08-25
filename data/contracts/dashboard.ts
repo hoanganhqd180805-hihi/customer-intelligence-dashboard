@@ -35,9 +35,24 @@ export interface CustomerRevenueContribution {
   revenueShare: number;
 }
 
-export type Weekday = "Thứ Hai" | "Thứ Ba" | "Thứ Tư" | "Thứ Năm" | "Thứ Sáu" | "Thứ Bảy" | "Chủ Nhật";
-export interface PurchaseTimeSlotTotal { weekday: Weekday; slot: string; totalOrders: number; revenue: number | null }
-export interface WeekdayOrderTotal { weekday: Weekday; totalOrders: number }
+export type Weekday =
+  | "Thứ Hai"
+  | "Thứ Ba"
+  | "Thứ Tư"
+  | "Thứ Năm"
+  | "Thứ Sáu"
+  | "Thứ Bảy"
+  | "Chủ Nhật";
+export interface PurchaseTimeSlotTotal {
+  weekday: Weekday;
+  slot: string;
+  totalOrders: number;
+  revenue: number | null;
+}
+export interface WeekdayOrderTotal {
+  weekday: Weekday;
+  totalOrders: number;
+}
 export interface PurchaseTimeDataset {
   weekdays: Weekday[];
   timeSlots: string[];
@@ -45,25 +60,98 @@ export interface PurchaseTimeDataset {
   weekdayTotals: WeekdayOrderTotal[];
   missingCombinationsMeanZero: boolean;
 }
-export interface CancellationReasonMetric { reason: string; cancelledOrders: number; orderShare: number; lostRevenue: number; lostRevenueShare: number }
-export interface CancellationAnalysisDataset { reasons: CancellationReasonMetric[]; totalCancelledOrders: number; totalLostRevenue: number; comparison: MetricComparison }
+export interface CancellationReasonMetric {
+  reason: string;
+  cancelledOrders: number;
+  orderShare: number;
+  lostRevenue: number;
+  lostRevenueShare: number;
+}
+export interface CancellationAnalysisDataset {
+  reasons: CancellationReasonMetric[];
+  totalCancelledOrders: number;
+  totalLostRevenue: number;
+  comparison: MetricComparison;
+}
 
 export type ShoppingType = "Combo" | "Bán lẻ" | "Hỗn hợp";
-export interface ShoppingCompositionMetric { type: ShoppingType; orderCount: number; orderShare: number; revenue: number; revenueShare: number }
+export interface ShoppingCompositionMetric {
+  type: ShoppingType;
+  orderCount: number;
+  orderShare: number;
+  revenue: number;
+  revenueShare: number;
+}
 
 export type ProductType = "retail" | "combo";
-export interface ProductPerformanceRow { rank: number; productType: ProductType; itemId: string; itemName: string; totalQuantitySold: number; totalOrders: number; productSales: number }
-export interface ProductPairItem { id: string; name: string }
-export interface ProductPairRow { rank: number; item1: ProductPairItem; item2: ProductPairItem; ordersBoughtTogether: number }
+export interface ProductPerformanceRow {
+  rank: number;
+  productType: ProductType;
+  itemId: string;
+  itemName: string;
+  totalQuantitySold: number;
+  totalOrders: number;
+  productSales: number;
+}
+export interface ProductPairItem {
+  id: string;
+  name: string;
+}
+export interface ProductPairRow {
+  rank: number;
+  item1: ProductPairItem;
+  item2: ProductPairItem;
+  ordersBoughtTogether: number;
+}
 
-export interface JourneyNode { id: string; stage: string; label: string; value: number; color: string; meta: string }
-export interface JourneyLink { id: string; source: string; target: string; value: number; label: string }
-export interface JourneyTransition { id: string; source: string; target: string; conversionRate: number; dropOffRate: number }
-export interface JourneySummaryCard { value: string; label: string }
-export interface JourneyDropOffCard { value: string; label: string; emphasized: boolean }
-export interface JourneyInsight { eyebrow: string; headline: string; detail: string }
+export interface JourneyNode {
+  id: string;
+  stage: string;
+  label: string;
+  value: number;
+  color: string;
+  meta: string;
+}
+export type JourneyMetricSemantic =
+  "contribution_share" | "distribution_share" | "conversion_rate";
+export interface JourneyLink {
+  id: string;
+  source: string;
+  target: string;
+  value: number;
+  label: string;
+  rate?: number | null;
+  rateLabel?: string | null;
+  metric?: JourneyMetricSemantic;
+  sourceStep?: number;
+  targetStep?: number;
+  sourceGroup?: string | null;
+  dataType?: string | null;
+}
+export interface JourneyTransition {
+  id: string;
+  source: string;
+  target: string;
+  conversionRate: number;
+  dropOffRate: number;
+}
+export interface JourneySummaryCard {
+  value: string;
+  label: string;
+}
+export interface JourneyDropOffCard {
+  value: string;
+  label: string;
+  emphasized: boolean;
+}
+export interface JourneyInsight {
+  eyebrow: string;
+  headline: string;
+  detail: string;
+}
 
-export type ChannelPerformanceStatus = "not_activated" | "active_no_result" | "low_efficiency" | "healthy";
+export type ChannelPerformanceStatus =
+  "not_activated" | "active_no_result" | "low_efficiency" | "healthy";
 export interface ChannelPerformance {
   id: string;
   channel: string;
@@ -80,27 +168,83 @@ export interface ChannelPerformanceDataset {
   channels: ChannelPerformance[];
   platformBenchmark: number | null;
   platforms: ChannelPerformance[];
-  summary: { tracked: number; needsAttention: number; notActivated: number; healthy: number };
+  summary: {
+    tracked: number;
+    needsAttention: number;
+    notActivated: number;
+    healthy: number;
+  };
+}
+
+export type CustomerSegmentId =
+  "vip" | "high_value" | "potential" | "low_value";
+
+export interface NewReturningDailyPoint {
+  date: string;
+  newCustomers: number | null;
+  returningCustomers: number | null;
+}
+
+export interface NewReturningCustomersDataset {
+  points: NewReturningDailyPoint[];
+  missingValueRule: "unavailable";
 }
 
 export interface CustomerSegmentMetric {
-  id: string;
+  id: CustomerSegmentId;
+  sourceSegment: string;
   segment: string;
+  condition: string;
+  definition: string;
   customerCount: number;
   customerShare: number;
+  totalOrders: number;
   revenue: number;
   revenueShare: number;
+  averageRecencyDays: number;
+  averageFrequency: number;
+  averageRevenuePerCustomer: number;
   color: string;
 }
+
 export interface CustomerSegmentationDataset {
   segments: CustomerSegmentMetric[];
   totalCustomers: number;
+  totalOrders: number;
   totalRevenue: number;
-  insight: string;
 }
 
-export interface RecommendationEvidence { metric: string; value: string; relationship: string }
-export interface RecommendationCardData { id: string; category: string; status: string; priority: number; severity: "high" | "medium" | "low"; signal: string; title: string; action: string; relationship: string; rationale: string; description: string; reason: string; evidence: RecommendationEvidence[] }
+export interface AverageRepurchaseDaysPoint {
+  date: string;
+  /** `null` means the workbook did not provide a value for this date. */
+  averageRepurchaseDays: number | null;
+}
+
+export interface AverageRepurchaseDaysDataset {
+  points: AverageRepurchaseDaysPoint[];
+  missingValueRule: "unavailable";
+}
+
+export interface RecommendationEvidence {
+  metric: string;
+  value: string;
+  relationship: string;
+}
+export interface RecommendationCardData {
+  id: string;
+  category: string;
+  status: string;
+  priority: number;
+  severity: "high" | "medium" | "low";
+  signal: string;
+  title: string;
+  action: string;
+  relationship: string;
+  rationale: string;
+  description: string;
+  reason: string;
+  evidence: RecommendationEvidence[];
+}
 
 export interface CustomerTypesDataset {
   availability: DataAvailability;

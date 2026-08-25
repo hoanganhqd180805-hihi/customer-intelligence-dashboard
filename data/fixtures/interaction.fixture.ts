@@ -1,6 +1,5 @@
 import type { ProductPairRow, ProductPerformanceRow, PurchaseTimeSlotTotal, Weekday, WeekdayOrderTotal } from "@/data/contracts/dashboard";
 export { shoppingComposition } from "./shopping-composition.fixture";
-export { recommendations } from "@/data/recommendations/recommendation-engine";
 
 export const weekdays: Weekday[] = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"];
 export const timeSlots = ["00:00 - 05:59", "06:00 - 08:59", "09:00 - 11:59", "12:00 - 14:59", "15:00 - 17:59", "18:00 - 23:59"];

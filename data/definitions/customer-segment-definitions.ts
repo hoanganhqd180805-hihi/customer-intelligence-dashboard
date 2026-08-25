@@ -1,58 +1,48 @@
+import type { CustomerSegmentId } from "@/data/contracts/dashboard";
+
 export interface CustomerSegmentDefinition {
-  internalKey: string;
+  id: CustomerSegmentId;
   displayName: string;
   definition: string;
-  precedence: number;
+  color: string;
+  sourceLabels: string[];
 }
 
 export const customerSegmentDefinitions: CustomerSegmentDefinition[] = [
   {
-    internalKey: "Khách mới",
-    displayName: "New",
-    definition: "Recent first-time customers who have made their first purchase.",
-    precedence: 1,
-  },
-  {
-    internalKey: "VIP",
+    id: "vip",
     displayName: "VIP",
-    definition: "Recent, frequent, and high-value customers.",
-    precedence: 2,
+    definition: "R ≥ 4, F ≥ 4, M ≥ 4.",
+    color: "#7457D9",
+    sourceLabels: ["VIP"],
   },
   {
-    internalKey: "Trung thành",
-    displayName: "Loyal",
-    definition: "Frequent customers who continue to purchase regularly.",
-    precedence: 3,
+    id: "high_value",
+    displayName: "High Value",
+    definition: "R ≥ 3, F ≥ 2, M ≥ 4; excluding VIP.",
+    color: "#3B82F6",
+    sourceLabels: ["High Value"],
   },
   {
-    internalKey: "Tiềm năng",
+    id: "potential",
     displayName: "Potential",
-    definition: "Recent repeat customers with potential to become loyal.",
-    precedence: 4,
+    definition: "R ≥ 4; excluding VIP and High Value.",
+    color: "#20A7A1",
+    sourceLabels: ["Potential"],
   },
   {
-    internalKey: "Nguy cơ rời bỏ",
-    displayName: "At Risk",
-    definition: "Previously active customers who have not purchased recently.",
-    precedence: 5,
-  },
-  {
-    internalKey: "Ngủ đông",
-    displayName: "Dormant",
-    definition: "Inactive customers who purchased infrequently in the past.",
-    precedence: 6,
-  },
-  {
-    internalKey: "Khách thường",
-    displayName: "Regular",
-    definition: "Customers with typical, ongoing purchasing behavior.",
-    precedence: 7,
+    id: "low_value",
+    displayName: "Low Value",
+    definition: "All remaining customers.",
+    color: "#8A839C",
+    sourceLabels: ["Low Value"],
   },
 ];
 
 export const customerSegmentDefinitionByKey = new Map(
-  customerSegmentDefinitions.map((definition) => [
-    definition.internalKey,
-    definition,
+  customerSegmentDefinitions.flatMap((definition) => [
+    [definition.id, definition] as const,
+    [definition.displayName, definition] as const,
+    ...definition.sourceLabels.map((label) => [label, definition] as const),
   ]),
 );

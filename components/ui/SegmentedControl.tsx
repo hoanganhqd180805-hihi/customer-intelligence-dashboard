@@ -22,7 +22,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="flex rounded-[11px] border border-[#d5d5d5] bg-[#f4f4f4] p-1 text-[11px] leading-[15px]"
+      className="inline-flex max-w-full flex-none rounded-[11px] border border-[#d5d5d5] bg-[#f4f4f4] p-1 text-[11px] leading-[15px]"
     >
       {options.map((option) => {
         const active = option.value === value;

@@ -1,7 +1,7 @@
 import type { RawDashboardResponse } from "@/data/contracts/raw-dashboard";
 import { overviewMockData } from "./overview.fixture";
 import { rawCustomerTypeWorkbookFixture } from "./customer-type-workbook.fixture";
-import { productPairs, products, purchaseTimeSlots, recommendations, shoppingComposition, timeSlots, weekdayOrders, weekdays } from "./interaction.fixture";
+import { productPairs, products, purchaseTimeSlots, shoppingComposition, timeSlots, weekdayOrders, weekdays } from "./interaction.fixture";
 import { journeyLinks, journeyNodes, journeyStages } from "./journey.fixture";
 import { rawCancellationWorkbookFixture } from "./section02-workbook.fixture";
 
@@ -40,5 +40,5 @@ export const rawDashboardFixture: RawDashboardResponse = {
     nodes: journeyNodes.map((row) => ({ id: row.id, stage: row.stage, label: row.label, value: row.value, color: row.color, metadata: row.meta })),
     links: journeyLinks.map((row) => ({ ...row })),
   },
-  recommendations: recommendations.map((row) => ({ ...row, evidence: row.evidence.map((evidence) => ({ ...evidence })) })),
+  recommendations: [],
 };
