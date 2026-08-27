@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   adaptAverageRepurchaseDays,
   adaptCustomerSegmentation,
+  adaptCustomerSegmentationDailyProducts,
   adaptNewReturningCustomers,
   filterAverageRepurchaseDays,
   filterNewReturningCustomers,
@@ -10,30 +11,57 @@ import {
 import {
   averageRepurchaseDaysDataset,
   customerSegmentationDataset,
+  customerSegmentationDailyDataset,
   newReturningCustomersDataset,
   rawAverageRepurchaseDaysWorkbookRows,
   rawCustomerSegmentationWorkbookRows,
   rawCustomerSegmentationWorkbookTotals,
+  rawCustomerSegmentationDailyWorkbookRows,
   rawNewReturningWorkbookRows,
 } from "@/data/fixtures/customer-segmentation-workbook.fixture";
 
 describe("new and returning customer workbook fixture", () => {
-  it("preserves chronological daily workbook values and explicit zeroes", () => {
-    expect(newReturningCustomersDataset.points).toHaveLength(17);
-    expect(newReturningCustomersDataset.points[0]).toEqual({
-      date: "2026-05-01",
+  it("preserves the latest chronological absolute customer and revenue values", () => {
+    expect(newReturningCustomersDataset.points).toHaveLength(7);
+    expect(newReturningCustomersDataset.points[0]).toMatchObject({
+      date: "2026-07-27",
+      newCustomers: 28,
+      returningCustomers: 4,
+      newRevenue: 2_413_802,
+      returningRevenue: 381_800,
+    });
+    expect(newReturningCustomersDataset.points[3]).toMatchObject({
+      date: "2026-07-30",
+      newCustomers: 12,
+      returningCustomers: 1,
+      newRevenue: 1_249_710,
+      returningRevenue: 106_460,
+    });
+    expect(newReturningCustomersDataset.points[6]).toMatchObject({
+      date: "2026-08-02",
       newCustomers: 0,
       returningCustomers: 0,
+      newRevenue: 0,
+      returningRevenue: 0,
     });
-    expect(newReturningCustomersDataset.points[8]).toEqual({
-      date: "2026-05-09",
-      newCustomers: 25,
-      returningCustomers: 12,
+    expect(newReturningCustomersDataset.points[0].newTopProducts).toHaveLength(
+      3,
+    );
+    expect(
+      newReturningCustomersDataset.points[0].newTopProducts?.[0],
+    ).toMatchObject({
+      productId: "24956187823",
+      productName: "Bánh Quy Bơ Mayora Danisa 200G",
+      orders: 1,
+      quantitySold: 4,
     });
-    expect(newReturningCustomersDataset.points[16]).toEqual({
-      date: "2026-05-17",
-      newCustomers: 0,
-      returningCustomers: 0,
+    expect(
+      newReturningCustomersDataset.points[0].returningTopProducts?.[0],
+    ).toMatchObject({
+      productId: "29233346058",
+      productName: "Bánh Quy Mayora Danisa Chocofello 150G",
+      orders: 1,
+      quantitySold: 2,
     });
   });
 
@@ -44,9 +72,16 @@ describe("new and returning customer workbook fixture", () => {
           date: "2026-05-01",
           newCustomers: null,
           returningCustomers: null,
+          newRevenue: null,
+          returningRevenue: null,
         },
       ]).points[0],
-    ).toMatchObject({ newCustomers: null, returningCustomers: null });
+    ).toMatchObject({
+      newCustomers: null,
+      returningCustomers: null,
+      newRevenue: null,
+      returningRevenue: null,
+    });
     expect(() =>
       adaptNewReturningCustomers([
         ...rawNewReturningWorkbookRows,
@@ -57,7 +92,15 @@ describe("new and returning customer workbook fixture", () => {
 
   it("renders actual daily values on the shared responsive sampling dates", () => {
     const sampledCustomers = filterNewReturningCustomers(
-      newReturningCustomersDataset,
+      adaptNewReturningCustomers(
+        rawAverageRepurchaseDaysWorkbookRows.map((row, index) => ({
+          date: row.date,
+          newCustomers: index,
+          returningCustomers: index * 2,
+          newRevenue: index * 1_000,
+          returningRevenue: index * 2_000,
+        })),
+      ),
       "2026-05-01",
       "2026-05-17",
     );
@@ -82,8 +125,10 @@ describe("new and returning customer workbook fixture", () => {
       sampledCustomers.points.map((point) => point.date),
     );
     expect(sampledCustomers.points[1]).toMatchObject({
-      newCustomers: 15,
-      returningCustomers: 3,
+      newCustomers: 2,
+      returningCustomers: 4,
+      newRevenue: 2_000,
+      returningRevenue: 4_000,
     });
     expect(sampledRepurchase.points[1].averageRepurchaseDays).toBe(38.36);
   });
@@ -117,6 +162,8 @@ describe("daily point density", () => {
           date: `2026-05-${String(day).padStart(2, "0")}`,
           newCustomers: day === dayCount ? 0 : day,
           returningCustomers: day === dayCount ? 0 : day * 2,
+          newRevenue: day === dayCount ? 0 : day * 1_000,
+          returningRevenue: day === dayCount ? 0 : day * 2_000,
         };
       });
       const finalDate = `2026-05-${String(dayCount).padStart(2, "0")}`;
@@ -131,6 +178,8 @@ describe("daily point density", () => {
         date: finalDate,
         newCustomers: 0,
         returningCustomers: 0,
+        newRevenue: 0,
+        returningRevenue: 0,
       });
       expect(sampled.points.map(({ date }) => date)).toEqual(
         getDailySamplingDates("2026-05-01", finalDate),
@@ -143,7 +192,7 @@ describe("customer segmentation workbook fixture", () => {
   it("maps only the four RFM segments in fixed business order", () => {
     expect(
       customerSegmentationDataset.segments.map((row) => row.segment),
-    ).toEqual(["VIP", "High Value", "Potential", "Low Value"]);
+    ).toEqual(["Top Buyers", "Big Spenders", "Potential", "Occasional Buyers"]);
     expect(customerSegmentationDataset.totalCustomers).toBe(352);
     expect(customerSegmentationDataset.totalOrders).toBe(592);
     expect(customerSegmentationDataset.totalRevenue).toBe(72_985_135);
@@ -210,6 +259,70 @@ describe("customer segmentation workbook fixture", () => {
         },
       ]),
     ).toThrow(/Unsupported customer segment/);
+  });
+});
+
+describe("daily customer segmentation workbook fixture", () => {
+  it("maps all 28 workbook rows into 7 complete daily stacked columns", () => {
+    expect(rawCustomerSegmentationDailyWorkbookRows).toHaveLength(28);
+    expect(customerSegmentationDailyDataset.sourceRange).toBe(
+      "Customer journey!B331:F359",
+    );
+    expect(customerSegmentationDailyDataset.points).toHaveLength(7);
+    expect(customerSegmentationDailyDataset.points[0]).toMatchObject({
+      date: "2026-07-27",
+      totalCustomers: 32,
+      totalOrders: null,
+      totalRevenue: 2_795_602,
+    });
+    expect(
+      customerSegmentationDailyDataset.points[0].segments.map(
+        ({ segment }) => segment,
+      ),
+    ).toEqual(["Top Buyers", "Big Spenders", "Potential", "Occasional Buyers"]);
+    expect(
+      customerSegmentationDailyDataset.points[0].segments[0],
+    ).toMatchObject({
+      sourceSegment: "Top Buyers",
+      customerCount: 0,
+      totalOrders: null,
+      revenue: 0,
+      topProducts: [],
+    });
+    expect(
+      customerSegmentationDailyDataset.points[0].segments[1].customerShare,
+    ).toBeCloseTo(12 / 32, 6);
+    expect(
+      customerSegmentationDailyDataset.points[0].segments[1].revenueShare,
+    ).toBeCloseTo(1_829_710 / 2_795_602, 6);
+    expect(
+      customerSegmentationDailyDataset.points[0].segments[1].topProducts?.[0],
+    ).toMatchObject({
+      productId: "20140942183",
+      productName: "Combo 2 Hủ Kẹo Cà Phê Sữa Mayora Kopiko 560G",
+      orders: 4,
+      quantitySold: 4,
+    });
+    expect(customerSegmentationDailyDataset.points.at(-1)).toMatchObject({
+      date: "2026-08-02",
+      totalCustomers: 0,
+      totalOrders: null,
+      totalRevenue: 0,
+    });
+  });
+
+  it("rejects duplicate or incomplete daily segment sets", () => {
+    expect(() =>
+      adaptCustomerSegmentationDailyProducts([
+        ...rawCustomerSegmentationDailyWorkbookRows,
+        rawCustomerSegmentationDailyWorkbookRows[0],
+      ]),
+    ).toThrow(/Duplicate daily customer segment/);
+    expect(() =>
+      adaptCustomerSegmentationDailyProducts(
+        rawCustomerSegmentationDailyWorkbookRows.slice(1),
+      ),
+    ).toThrow(/Incomplete daily customer segmentation/);
   });
 });
 

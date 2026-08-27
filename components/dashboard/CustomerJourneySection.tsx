@@ -7,7 +7,12 @@ import {
   useRef,
   useState,
 } from "react";
-import type { JourneyNodeData } from "@/data/contracts/dashboard";
+import { CircleAlert } from "lucide-react";
+import type {
+  CancellationReasonMetric,
+  JourneyNodeData,
+} from "@/data/contracts/dashboard";
+import { journeyCancellationDetailDataset } from "@/data/fixtures/journey-cancellation.fixture";
 import {
   journeyLinks,
   journeyNodes,
@@ -45,6 +50,7 @@ interface NodeBreakdownSection {
 interface NodeBreakdown extends NodeBreakdownSection {
   unit: string;
   secondary?: NodeBreakdownSection;
+  cancellationReasons?: CancellationReasonMetric[];
 }
 type NodeDetailPlacement = "right" | "left" | "below" | "above";
 interface NodeAnchorRect {
@@ -442,6 +448,7 @@ nodeBreakdownEntries.push(
     {
       ...createDirectIncomingConversionBreakdown("Cancel", "cancelled orders"),
       title: "Order Result Rate",
+      cancellationReasons: journeyCancellationDetailDataset.reasons,
     },
   ],
   [
@@ -478,7 +485,13 @@ const getNodeDetailWidth = (
 ) => {
   const itemCount =
       breakdown.items.length + (breakdown.secondary?.items.length ?? 0),
-    preferredWidth = itemCount <= 1 ? 260 : itemCount <= 2 ? 290 : 340;
+    preferredWidth = breakdown.cancellationReasons?.length
+      ? 390
+      : itemCount <= 1
+        ? 260
+        : itemCount <= 2
+          ? 290
+          : 340;
   return Math.max(220, Math.min(preferredWidth, containerWidth - 28));
 };
 const estimateNodeDetailHeight = (breakdown: NodeBreakdown) => {
@@ -639,6 +652,7 @@ export function CustomerJourneySection() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [nodeDetail, setNodeDetail] = useState<NodeDetailState | null>(null);
+  const [cancelMoreDetailOpen, setCancelMoreDetailOpen] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const nodeDetailPopoverRef = useRef<HTMLDivElement>(null);
   const nodeDetailHideTimer = useRef<ReturnType<typeof setTimeout> | null>(
@@ -670,6 +684,7 @@ export function CustomerJourneySection() {
     nodeDetailHideTimer.current = setTimeout(() => {
       setNodeDetail(null);
       setHoveredId(null);
+      setCancelMoreDetailOpen(false);
     }, 200);
   };
   const openNodeDetail = (node: JourneyNodeData, nodeElement: SVGGElement) => {
@@ -688,6 +703,7 @@ export function CustomerJourneySection() {
         estimateNodeDetailHeight(breakdown),
       );
     cancelNodeDetailHide();
+    setCancelMoreDetailOpen(false);
     if (window.matchMedia("(hover: hover)").matches) setSelectedId(null);
     setHoveredId(node.id);
     setNodeDetail({
@@ -720,11 +736,12 @@ export function CustomerJourneySection() {
         ? { ...current, ...nextPosition }
         : current,
     );
-  }, [nodeDetail]);
+  }, [cancelMoreDetailOpen, nodeDetail]);
   useEffect(() => {
     return subscribeToOtherAnalyticalTooltips("customer-journey", () => {
       cancelNodeDetailHide();
       setNodeDetail(null);
+      setCancelMoreDetailOpen(false);
       setSelectedId(null);
       setHoveredId(null);
     });
@@ -735,6 +752,7 @@ export function CustomerJourneySection() {
       if (nodeDetailPopoverRef.current?.contains(target)) return;
       if (target.closest('[data-node-detail-trigger="true"]')) return;
       setNodeDetail(null);
+      setCancelMoreDetailOpen(false);
       setSelectedId(null);
       setHoveredId(null);
     };
@@ -800,6 +818,7 @@ export function CustomerJourneySection() {
                 onClick={() => {
                   setSelectedId(null);
                   setNodeDetail(null);
+                  setCancelMoreDetailOpen(false);
                 }}
                 className="cursor-pointer font-semibold text-[#86eae9] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#86eae9]"
               >
@@ -1101,15 +1120,65 @@ export function CustomerJourneySection() {
               width: nodeDetail.width,
             }}
             onMouseEnter={cancelNodeDetailHide}
-            onMouseLeave={scheduleNodeDetailHide}
+            onMouseLeave={() => {
+              setCancelMoreDetailOpen(false);
+              scheduleNodeDetailHide();
+            }}
           >
-            <strong className="text-[13px] text-white">
-              {nodeDetail.node.label}
-            </strong>
-            <p className="text-[#86eae9]">
-              {numberFormat.format(nodeDetail.breakdown.total)}{" "}
-              {nodeDetail.breakdown.unit}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <strong className="text-[13px] text-white">
+                  {nodeDetail.node.label}
+                </strong>
+                <p className="text-[#86eae9]">
+                  {numberFormat.format(nodeDetail.breakdown.total)}{" "}
+                  {nodeDetail.breakdown.unit}
+                </p>
+              </div>
+              {nodeDetail.breakdown.cancellationReasons?.length ? (
+                <button
+                  type="button"
+                  aria-expanded={cancelMoreDetailOpen}
+                  aria-controls="cancel-more-detail-panel"
+                  onMouseEnter={() => setCancelMoreDetailOpen(true)}
+                  onFocus={() => setCancelMoreDetailOpen(true)}
+                  onClick={() =>
+                    setCancelMoreDetailOpen((current) => !current)
+                  }
+                  className="flex flex-none cursor-pointer items-center gap-1 whitespace-nowrap rounded-[7px] px-1.5 py-1 text-[10.5px] font-medium text-[#ff9a94] transition-colors hover:bg-[#ff7770]/10 hover:text-[#ffb0ab] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff8f89]"
+                >
+                  <CircleAlert aria-hidden="true" size={13} strokeWidth={1.9} />
+                  More detail
+                </button>
+              ) : null}
+            </div>
+            {cancelMoreDetailOpen &&
+            nodeDetail.breakdown.cancellationReasons?.length ? (
+              <div
+                id="cancel-more-detail-panel"
+                className="mt-2.5 rounded-[10px] border border-[#ff8f89]/20 bg-[#120c20]/85 p-2.5"
+              >
+                <div className="mb-1.5 grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-white/[.08] pb-1.5 text-[9.5px] font-semibold uppercase tracking-[.07em] text-[#9aa3c9]">
+                  <span>Cancellation reason</span>
+                  <span>Lost revenue</span>
+                </div>
+                <div className="space-y-1.5">
+                  {nodeDetail.breakdown.cancellationReasons.map((reason) => (
+                    <div
+                      key={reason.reason}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3"
+                    >
+                      <span className="min-w-0 leading-[1.35] text-[#dce5ff]">
+                        {reason.reason}
+                      </span>
+                      <strong className="whitespace-nowrap text-right text-[#ffaaa5]">
+                        {numberFormat.format(reason.lostRevenue)} ₫
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {getBreakdownSections(nodeDetail.breakdown).map(
               (section, sectionIndex) => (
                 <div

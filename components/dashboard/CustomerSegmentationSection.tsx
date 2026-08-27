@@ -1,9 +1,9 @@
 "use client";
 
-import { curveLinear, line } from "d3";
 import { motion } from "framer-motion";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
+  CustomerSegmentationDailyDataset,
   CustomerSegmentationDataset,
   CustomerSegmentMetric,
   NewReturningCustomersDataset,
@@ -11,10 +11,15 @@ import type {
 } from "@/data/contracts/dashboard";
 import { filterNewReturningCustomers } from "@/data/adapters/customer-segmentation.adapter";
 import {
+  customerSegmentationDailyDataset,
   customerSegmentationDataset,
   newReturningCustomersDataset,
 } from "@/data/fixtures/customer-segmentation-workbook.fixture";
+import { mockTopProductsBySegment } from "@/data/fixtures/customer-overview-products.fixture";
 import { Card } from "@/components/ui/Card";
+import { CustomerOriginMapCard } from "@/components/dashboard/CustomerOriginMapCard";
+import { CustomerSegmentationDailyCard } from "@/components/dashboard/CustomerSegmentationDailyCard";
+import { TopProductsTooltipContent } from "@/components/dashboard/TopProductsTooltipContent";
 import {
   DateRangePill,
   type DateRangeValue,
@@ -27,13 +32,22 @@ import {
   announceAnalyticalTooltip,
   subscribeToOtherAnalyticalTooltips,
 } from "@/lib/interaction/analytical-tooltip";
+import {
+  DASHBOARD_STACKED_COLUMN_MARGIN_X,
+  getDashboardStackedColumnWidth,
+} from "@/lib/charts/stacked-column-geometry";
 
 type SegmentMode = "customers" | "revenue";
 type CustomerSeriesId = "new" | "returning";
+type CustomerTrendMode = "customers" | "revenue";
 
 const countFormat = new Intl.NumberFormat("en-US");
 const decimalFormat = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
+});
+const compactNumberFormat = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
 });
 const formatCompactVnd = (value: number) =>
   value >= 1_000_000
@@ -51,12 +65,19 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
 });
 
 const CUSTOMER_CHART_HEIGHT = 280;
-const CHART_MARGIN = { top: 22, right: 24, bottom: 42, left: 58 };
+const CHART_MARGIN = {
+  top: 22,
+  ...DASHBOARD_STACKED_COLUMN_MARGIN_X,
+  bottom: 52,
+};
 const circumference = 2 * Math.PI * SHARED_DONUT_GEOMETRY.centerlineRadius;
 
 interface CustomerChartPoint extends NewReturningDailyPoint {
   x: number;
-  newY: number;
+  newValue: number | null;
+  returningValue: number | null;
+  totalValue: number | null;
+  totalY: number;
   returningY: number;
 }
 
@@ -73,6 +94,7 @@ export interface CustomerOverviewPlatformDataset {
   label: string;
   newReturningData: NewReturningCustomersDataset;
   segmentationData: CustomerSegmentationDataset;
+  segmentationDailyData?: CustomerSegmentationDailyDataset;
 }
 
 const CUSTOMER_OVERVIEW_PLATFORM_OPTIONS = [
@@ -184,82 +206,105 @@ function positionSegmentDefinition(
   };
 }
 
-function NewReturningChart({ data }: { data: NewReturningCustomersDataset }) {
+function NewReturningChart({
+  data,
+  mode,
+}: {
+  data: NewReturningCustomersDataset;
+  mode: CustomerTrendMode;
+}) {
   const { ref, width } = useElementWidth<HTMLDivElement>();
   const [activeSeries, setActiveSeries] = useState<CustomerSeriesId | null>(
     null,
   );
-  const [tooltip, setTooltip] = useState<CustomerChartPoint | null>(null);
+  const [tooltipTarget, setTooltipTarget] = useState<{
+    date: string;
+    series: CustomerSeriesId | null;
+  } | null>(null);
   const finalChartData = data.points;
+  const metricValues = (point: NewReturningDailyPoint) =>
+    mode === "customers"
+      ? [point.newCustomers, point.returningCustomers]
+      : [point.newRevenue, point.returningRevenue];
   const plotWidth = Math.max(1, width - CHART_MARGIN.left - CHART_MARGIN.right);
   const plotHeight =
     CUSTOMER_CHART_HEIGHT - CHART_MARGIN.top - CHART_MARGIN.bottom;
-  const observedValues = finalChartData.flatMap((point) =>
-    [point.newCustomers, point.returningCustomers].filter(
+  const observedValues = finalChartData.flatMap((point) => {
+    const values = metricValues(point).filter(
       (value): value is number => value !== null,
-    ),
-  );
+    );
+    return values.length ? [values.reduce((sum, value) => sum + value, 0)] : [];
+  });
 
   if (!finalChartData.length || !observedValues.length) {
     return (
       <div className="flex h-[280px] items-center justify-center text-[13px] text-[#747d8b]">
-        New and returning customer data is unavailable for this date range.
+        New and returning {mode === "customers" ? "customer" : "revenue"} data
+        is unavailable for this date range.
       </div>
     );
   }
 
   const observedMax = Math.max(...observedValues);
-  const yMax = Math.max(10, Math.ceil((observedMax * 1.1) / 10) * 10);
+  const paddedMaximum = Math.max(1, observedMax * 1.1);
+  const magnitude = 10 ** Math.floor(Math.log10(paddedMaximum));
+  const normalizedMaximum = paddedMaximum / magnitude;
+  const niceFactor =
+    normalizedMaximum <= 1
+      ? 1
+      : normalizedMaximum <= 2
+        ? 2
+        : normalizedMaximum <= 5
+          ? 5
+          : 10;
+  const yMax =
+    mode === "customers"
+      ? Math.max(10, Math.ceil(paddedMaximum / 10) * 10)
+      : Math.max(1_000, niceFactor * magnitude);
+  const columnWidth = plotWidth / Math.max(1, finalChartData.length);
+  const barWidth = getDashboardStackedColumnWidth(columnWidth);
+  const rotateDateLabels = columnWidth < 48;
   const xForIndex = (index: number) =>
-    finalChartData.length <= 1
-      ? CHART_MARGIN.left + plotWidth / 2
-      : CHART_MARGIN.left + (index / (finalChartData.length - 1)) * plotWidth;
+    CHART_MARGIN.left + columnWidth * (index + 0.5);
   const yForValue = (value: number) =>
     CHART_MARGIN.top + plotHeight - (value / yMax) * plotHeight;
   const chartPoints: CustomerChartPoint[] = finalChartData.map(
-    (point, index) => ({
-      ...point,
-      x: xForIndex(index),
-      newY:
-        point.newCustomers === null
-          ? CHART_MARGIN.top + plotHeight
-          : yForValue(point.newCustomers),
-      returningY:
-        point.returningCustomers === null
-          ? CHART_MARGIN.top + plotHeight
-          : yForValue(point.returningCustomers),
-    }),
+    (point, index) => {
+      const [newValue, returningValue] = metricValues(point);
+      const totalValue =
+        newValue === null || returningValue === null
+          ? null
+          : newValue + returningValue;
+      return {
+        ...point,
+        x: xForIndex(index),
+        newValue,
+        returningValue,
+        totalValue,
+        totalY:
+          totalValue === null
+            ? CHART_MARGIN.top + plotHeight
+            : yForValue(totalValue),
+        returningY:
+          returningValue === null
+            ? CHART_MARGIN.top + plotHeight
+            : yForValue(returningValue),
+      };
+    },
   );
-  const newPath =
-    line<CustomerChartPoint>()
-      .defined((point) => point.newCustomers !== null)
-      .x((point) => point.x)
-      .y((point) => point.newY)
-      .curve(curveLinear)(chartPoints) ?? "";
-  const returningPath =
-    line<CustomerChartPoint>()
-      .defined((point) => point.returningCustomers !== null)
-      .x((point) => point.x)
-      .y((point) => point.returningY)
-      .curve(curveLinear)(chartPoints) ?? "";
+  const tooltip =
+    chartPoints.find((point) => point.date === tooltipTarget?.date) ?? null;
   const yTicks = Array.from({ length: 5 }, (_, index) => (yMax / 4) * index);
-  const xLabelStep = width < 520 ? 4 : width < 720 ? 3 : 2;
   const series = [
     {
       id: "new" as const,
       label: "New",
       color: "#3B82F6",
-      path: newPath,
-      value: (point: CustomerChartPoint) => point.newCustomers,
-      y: (point: CustomerChartPoint) => point.newY,
     },
     {
       id: "returning" as const,
       label: "Returning",
       color: "#20A7A1",
-      path: returningPath,
-      value: (point: CustomerChartPoint) => point.returningCustomers,
-      y: (point: CustomerChartPoint) => point.returningY,
     },
   ];
 
@@ -277,7 +322,7 @@ function NewReturningChart({ data }: { data: NewReturningCustomersDataset }) {
             onBlur={() => setActiveSeries(null)}
           >
             <span
-              className="h-2.5 w-2.5 rounded-full"
+              className="h-2.5 w-2.5 rounded-[2px]"
               style={{ backgroundColor: item.color }}
             />
             {item.label}
@@ -290,9 +335,9 @@ function NewReturningChart({ data }: { data: NewReturningCustomersDataset }) {
           height={CUSTOMER_CHART_HEIGHT}
           viewBox={`0 0 ${width} ${CUSTOMER_CHART_HEIGHT}`}
           role="img"
-          aria-label="Daily new and returning customer counts"
+          aria-label={`Daily new and returning customer ${mode === "customers" ? "counts" : "revenue"}`}
           className="block overflow-visible"
-          onMouseLeave={() => setTooltip(null)}
+          onMouseLeave={() => setTooltipTarget(null)}
         >
           {yTicks.map((tick) => {
             const y = yForValue(tick);
@@ -312,80 +357,128 @@ function NewReturningChart({ data }: { data: NewReturningCustomersDataset }) {
                   fill="#727b89"
                   fontSize="11"
                 >
-                  {countFormat.format(tick)}
+                  {mode === "customers"
+                    ? countFormat.format(tick)
+                    : compactNumberFormat.format(tick)}
                 </text>
               </g>
             );
           })}
-          {chartPoints.map((point, index) =>
-            index === chartPoints.length - 1 ||
-            (index % xLabelStep === 0 &&
-              index <= chartPoints.length - 1 - xLabelStep) ? (
-              <text
-                key={point.date}
-                x={xForIndex(index)}
-                y={CUSTOMER_CHART_HEIGHT - 13}
-                textAnchor="middle"
-                fill="#727b89"
-                fontSize="10.5"
-              >
-                {formatDate(point.date)}
-              </text>
-            ) : null,
-          )}
-          {series.map((item) => (
-            <g key={item.id}>
-              <path
-                data-customer-series={item.id}
-                d={item.path}
-                fill="none"
-                stroke={item.color}
-                strokeWidth={activeSeries === item.id ? 3.4 : 2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity={activeSeries && activeSeries !== item.id ? 0.25 : 1}
-                vectorEffect="non-scaling-stroke"
-                className="transition-opacity duration-150 motion-reduce:transition-none"
-              />
-              {chartPoints.map((point) =>
-                item.value(point) !== null ? (
-                  <circle
-                    key={`${point.date}-${item.id}`}
-                    cx={point.x}
-                    cy={item.y(point)}
-                    r={tooltip?.date === point.date ? 4 : 3}
-                    fill="white"
-                    stroke={item.color}
-                    strokeWidth="2"
-                  />
-                ) : null,
-              )}
-            </g>
+          <text
+            x="13"
+            y={CHART_MARGIN.top + plotHeight / 2}
+            textAnchor="middle"
+            fill="#727b89"
+            fontSize="10.5"
+            transform={`rotate(-90 13 ${CHART_MARGIN.top + plotHeight / 2})`}
+          >
+            {mode === "customers" ? "Customers" : "Revenue"}
+          </text>
+          {chartPoints.map((point) => (
+            <text
+              key={point.date}
+              x={point.x}
+              y={CUSTOMER_CHART_HEIGHT - 9}
+              textAnchor={rotateDateLabels ? "end" : "middle"}
+              fill="#727b89"
+              fontSize="10"
+              transform={
+                rotateDateLabels
+                  ? `rotate(-38 ${point.x} ${CUSTOMER_CHART_HEIGHT - 9})`
+                  : undefined
+              }
+            >
+              {formatDate(point.date)}
+            </text>
           ))}
+          {chartPoints.map((point) => {
+            const baselineY = CHART_MARGIN.top + plotHeight;
+            const returningHeight =
+              point.returningValue === null ? 0 : baselineY - point.returningY;
+            const newHeight =
+              point.newValue === null || point.totalValue === null
+                ? 0
+                : point.returningY - point.totalY;
+            const isHovered = tooltip?.date === point.date;
+            return (
+              <g
+                key={`${point.date}-bars`}
+                data-stacked-customer-bar={point.date}
+              >
+                {returningHeight > 0 ? (
+                  <rect
+                    x={point.x - barWidth / 2}
+                    y={point.returningY}
+                    width={barWidth}
+                    height={returningHeight}
+                    rx="2"
+                    fill="#20A7A1"
+                    opacity={
+                      activeSeries && activeSeries !== "returning" ? 0.25 : 1
+                    }
+                    stroke={isHovered ? "#ffffff" : "none"}
+                    strokeWidth={isHovered ? 1.5 : 0}
+                    className="transition-opacity duration-150 motion-reduce:transition-none"
+                  />
+                ) : null}
+                {newHeight > 0 ? (
+                  <rect
+                    x={point.x - barWidth / 2}
+                    y={point.totalY}
+                    width={barWidth}
+                    height={newHeight}
+                    rx="3"
+                    fill="#3B82F6"
+                    opacity={activeSeries && activeSeries !== "new" ? 0.25 : 1}
+                    stroke={isHovered ? "#ffffff" : "none"}
+                    strokeWidth={isHovered ? 1.5 : 0}
+                    className="transition-opacity duration-150 motion-reduce:transition-none"
+                  />
+                ) : null}
+              </g>
+            );
+          })}
           {chartPoints.map((point, index) => (
             <g key={point.date}>
               <rect
-                x={
-                  index === 0
-                    ? CHART_MARGIN.left
-                    : point.x -
-                      plotWidth / Math.max(2, chartPoints.length - 1) / 2
-                }
+                x={CHART_MARGIN.left + index * columnWidth}
                 y={CHART_MARGIN.top}
-                width={
-                  index === 0 || index === chartPoints.length - 1
-                    ? plotWidth / Math.max(2, chartPoints.length - 1) / 2
-                    : plotWidth / Math.max(2, chartPoints.length - 1)
-                }
+                width={columnWidth}
                 height={plotHeight}
                 fill="transparent"
                 tabIndex={0}
                 role="graphics-symbol"
-                aria-label={`${formatDate(point.date)}: ${point.newCustomers ?? "unavailable"} new customers, ${point.returningCustomers ?? "unavailable"} returning customers`}
-                onMouseEnter={() => setTooltip(point)}
-                onMouseLeave={() => setTooltip(null)}
-                onFocus={() => setTooltip(point)}
-                onBlur={() => setTooltip(null)}
+                aria-label={`${formatDate(point.date)}: ${point.newValue ?? "unavailable"} new ${mode === "customers" ? "customers" : "revenue"}, ${point.returningValue ?? "unavailable"} returning ${mode === "customers" ? "customers" : "revenue"}, ${point.totalValue ?? "unavailable"} total`}
+                onMouseEnter={() =>
+                  setTooltipTarget({ date: point.date, series: null })
+                }
+                onMouseMove={(event) => {
+                  const svg = event.currentTarget.ownerSVGElement;
+                  if (!svg) return;
+                  const svgRect = svg.getBoundingClientRect();
+                  const pointerY =
+                    ((event.clientY - svgRect.top) / svgRect.height) *
+                    CUSTOMER_CHART_HEIGHT;
+                  const baselineY = CHART_MARGIN.top + plotHeight;
+                  const series =
+                    point.returningValue !== null &&
+                    point.returningValue > 0 &&
+                    pointerY >= point.returningY &&
+                    pointerY <= baselineY
+                      ? "returning"
+                      : point.newValue !== null &&
+                          point.newValue > 0 &&
+                          pointerY >= point.totalY &&
+                          pointerY < point.returningY
+                        ? "new"
+                        : null;
+                  setTooltipTarget({ date: point.date, series });
+                }}
+                onMouseLeave={() => setTooltipTarget(null)}
+                onFocus={() =>
+                  setTooltipTarget({ date: point.date, series: null })
+                }
+                onBlur={() => setTooltipTarget(null)}
               />
             </g>
           ))}
@@ -396,7 +489,7 @@ function NewReturningChart({ data }: { data: NewReturningCustomersDataset }) {
             className="pointer-events-none absolute z-40 min-w-[170px] rounded-lg border border-[#d8deea] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(28,39,63,.16)]"
             style={{
               left: tooltip.x,
-              top: Math.max(4, Math.min(tooltip.newY, tooltip.returningY) - 12),
+              top: Math.max(4, tooltip.totalY - 12),
               transform:
                 tooltip.x > width - 210
                   ? "translate(-100%, -100%)"
@@ -409,17 +502,43 @@ function NewReturningChart({ data }: { data: NewReturningCustomersDataset }) {
             <div className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-[11px]">
               <span className="text-[#687284]">New</span>
               <strong className="text-[#17366f]">
-                {tooltip.newCustomers === null
+                {tooltip.newValue === null
                   ? "Unavailable"
-                  : `${countFormat.format(tooltip.newCustomers)} customers`}
+                  : mode === "customers"
+                    ? `${countFormat.format(tooltip.newValue)} customers`
+                    : `${compactNumberFormat.format(tooltip.newValue)} revenue`}
               </strong>
               <span className="text-[#687284]">Returning</span>
               <strong className="text-[#17366f]">
-                {tooltip.returningCustomers === null
+                {tooltip.returningValue === null
                   ? "Unavailable"
-                  : `${countFormat.format(tooltip.returningCustomers)} customers`}
+                  : mode === "customers"
+                    ? `${countFormat.format(tooltip.returningValue)} customers`
+                    : `${compactNumberFormat.format(tooltip.returningValue)} revenue`}
+              </strong>
+              <span className="border-t border-[#e8ecf2] pt-1 text-[#687284]">
+                Total
+              </span>
+              <strong className="border-t border-[#e8ecf2] pt-1 text-[#172e63]">
+                {tooltip.totalValue === null
+                  ? "Unavailable"
+                  : mode === "customers"
+                    ? `${countFormat.format(tooltip.totalValue)} customers`
+                    : `${compactNumberFormat.format(tooltip.totalValue)} revenue`}
               </strong>
             </div>
+            {tooltipTarget?.series ? (
+              <TopProductsTooltipContent
+                products={
+                  tooltipTarget.series === "new"
+                    ? (tooltip.newTopProducts ?? [])
+                    : (tooltip.returningTopProducts ?? [])
+                }
+                contextLabel={
+                  tooltipTarget.series === "new" ? "New" : "Returning"
+                }
+              />
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -498,9 +617,7 @@ function SegmentationDonut({
               strokeLinecap="butt"
               className="cursor-pointer transition-[stroke-width,stroke-dasharray,stroke-dashoffset,opacity] duration-300 ease-out focus:outline-none motion-reduce:transition-none"
               opacity={activeId ? (activeId === segment.id ? 1 : 0.45) : 1}
-              onMouseEnter={(event) =>
-                onHover(segment.id, event.currentTarget)
-              }
+              onMouseEnter={(event) => onHover(segment.id, event.currentTarget)}
               onMouseLeave={() => onHover(null)}
               onFocus={(event) => onHover(segment.id, event.currentTarget)}
               onBlur={() => onHover(null)}
@@ -587,7 +704,7 @@ function SegmentationDonut({
   );
 }
 
-function SegmentationDonutCard({
+function LegacySegmentationDonutCard({
   data,
 }: {
   data: CustomerSegmentationDataset;
@@ -835,6 +952,10 @@ function SegmentationDonutCard({
               <p className="mt-2 border-t border-[#e8ecf2] pt-2 text-[9.5px] leading-[1.45] text-[#747d8b]">
                 R = Recency · F = Frequency · M = Monetary
               </p>
+              <TopProductsTooltipContent
+                products={mockTopProductsBySegment[activeDefinition.id] ?? []}
+                contextLabel={activeDefinition.segment}
+              />
             </motion.div>
           ) : null}
         </div>
@@ -843,13 +964,29 @@ function SegmentationDonutCard({
   );
 }
 
+function SegmentationDonutCard({
+  data,
+  dailyData,
+}: {
+  data: CustomerSegmentationDataset;
+  dailyData?: CustomerSegmentationDailyDataset;
+}) {
+  return dailyData?.points.length ? (
+    <CustomerSegmentationDailyCard data={dailyData} />
+  ) : (
+    <LegacySegmentationDonutCard data={data} />
+  );
+}
+
 export function CustomerSegmentationSection({
   newReturningData = newReturningCustomersDataset,
   segmentationData = customerSegmentationDataset,
+  segmentationDailyData = customerSegmentationDailyDataset,
   platformDatasets,
 }: {
   newReturningData?: NewReturningCustomersDataset;
   segmentationData?: CustomerSegmentationDataset;
+  segmentationDailyData?: CustomerSegmentationDailyDataset;
   platformDatasets?: CustomerOverviewPlatformDataset[];
 }) {
   const availablePlatforms = useMemo<CustomerOverviewPlatformDataset[]>(
@@ -862,13 +999,21 @@ export function CustomerSegmentationSection({
               label: "All Platforms",
               newReturningData,
               segmentationData,
+              segmentationDailyData,
             },
           ],
-    [newReturningData, platformDatasets, segmentationData],
+    [
+      newReturningData,
+      platformDatasets,
+      segmentationDailyData,
+      segmentationData,
+    ],
   );
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<
     CustomerOverviewPlatformId[]
   >([...DEFAULT_SELECTED_PLATFORMS]);
+  const [customerTrendMode, setCustomerTrendMode] =
+    useState<CustomerTrendMode>("customers");
   const activePlatform =
     (selectedPlatformIds.length === 1
       ? availablePlatforms.find(({ id }) => id === selectedPlatformIds[0])
@@ -925,19 +1070,39 @@ export function CustomerSegmentationSection({
           />
         </div>
       </header>
-      <div className="grid grid-cols-1 items-stretch gap-4 min-[1280px]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-stretch gap-4 min-[1280px]:grid-cols-3">
         <Card className="h-full min-h-[420px] px-5 pb-4 pt-4 min-[1280px]:h-[430px] min-[1280px]:min-h-[430px]">
-          <header>
-            <h3 className="text-[16px] font-semibold text-[#172033]">
-              New vs Returning Customers
-            </h3>
-            <p className="mt-0.5 text-[11.5px] text-[#747d8b]">
-              Daily customer acquisition and return trend
-            </p>
+          <header className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+            <div>
+              <h3 className="text-[16px] font-semibold text-[#172033]">
+                New vs Returning Customers
+              </h3>
+              <p className="mt-0.5 text-[11.5px] text-[#747d8b]">
+                Daily customer acquisition and return trend
+              </p>
+            </div>
+            <SegmentedControl
+              value={customerTrendMode}
+              options={[
+                { value: "customers", label: "Customer" },
+                { value: "revenue", label: "Revenue" },
+              ]}
+              onChange={setCustomerTrendMode}
+              ariaLabel="New versus returning metric"
+            />
           </header>
-          <NewReturningChart data={filteredNewReturningData} />
+          <NewReturningChart
+            data={filteredNewReturningData}
+            mode={customerTrendMode}
+          />
         </Card>
-        <SegmentationDonutCard data={activePlatform.segmentationData} />
+        <SegmentationDonutCard
+          data={activePlatform.segmentationData}
+          dailyData={
+            activePlatform.segmentationDailyData ?? segmentationDailyData
+          }
+        />
+        <CustomerOriginMapCard />
       </div>
     </section>
   );

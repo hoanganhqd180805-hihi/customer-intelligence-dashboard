@@ -1,33 +1,19 @@
 import {
   adaptAverageRepurchaseDays,
   adaptCustomerSegmentation,
+  adaptCustomerSegmentationDailyProducts,
   adaptNewReturningCustomers,
   type RawAverageRepurchaseDaysRow,
   type RawCustomerSegmentRow,
   type RawCustomerSegmentationTotals,
-  type RawNewReturningDailyRow,
 } from "@/data/adapters/customer-segmentation.adapter";
+import {
+  latestCustomerSegmentationDailyWorkbookRows,
+  latestNewReturningWorkbookRows,
+} from "@/data/fixtures/customer-overview-latest-workbook.fixture";
 
-/** Exact extracted values from `mapping data.xlsx`, `Customer journey!A8:C24`. */
-export const rawNewReturningWorkbookRows: RawNewReturningDailyRow[] = [
-  { date: "2026-05-01", newCustomers: 0, returningCustomers: 0 },
-  { date: "2026-05-02", newCustomers: 4, returningCustomers: 1 },
-  { date: "2026-05-03", newCustomers: 15, returningCustomers: 3 },
-  { date: "2026-05-04", newCustomers: 24, returningCustomers: 9 },
-  { date: "2026-05-05", newCustomers: 29, returningCustomers: 12 },
-  { date: "2026-05-06", newCustomers: 29, returningCustomers: 9 },
-  { date: "2026-05-07", newCustomers: 14, returningCustomers: 6 },
-  { date: "2026-05-08", newCustomers: 22, returningCustomers: 4 },
-  { date: "2026-05-09", newCustomers: 25, returningCustomers: 12 },
-  { date: "2026-05-10", newCustomers: 24, returningCustomers: 8 },
-  { date: "2026-05-11", newCustomers: 24, returningCustomers: 3 },
-  { date: "2026-05-12", newCustomers: 22, returningCustomers: 12 },
-  { date: "2026-05-13", newCustomers: 17, returningCustomers: 11 },
-  { date: "2026-05-14", newCustomers: 9, returningCustomers: 2 },
-  { date: "2026-05-15", newCustomers: 8, returningCustomers: 5 },
-  { date: "2026-05-16", newCustomers: 1, returningCustomers: 0 },
-  { date: "2026-05-17", newCustomers: 0, returningCustomers: 0 },
-];
+/** Exact rows from `mapping data.xlsx`, `Customer journey!B320:J327`. */
+export const rawNewReturningWorkbookRows = latestNewReturningWorkbookRows;
 
 export const newReturningCustomersDataset = adaptNewReturningCustomers(
   rawNewReturningWorkbookRows,
@@ -98,6 +84,15 @@ export const customerSegmentationDataset = adaptCustomerSegmentation(
   rawCustomerSegmentationWorkbookRows,
   rawCustomerSegmentationWorkbookTotals,
 );
+
+/** Exact rows from `mapping data.xlsx`, `Customer journey!B331:F359`. */
+export const rawCustomerSegmentationDailyWorkbookRows =
+  latestCustomerSegmentationDailyWorkbookRows;
+
+export const customerSegmentationDailyDataset =
+  adaptCustomerSegmentationDailyProducts(
+    rawCustomerSegmentationDailyWorkbookRows,
+  );
 
 /** Exact extracted values from `mapping data.xlsx`, `Customer journey!B239:C255`. */
 export const rawAverageRepurchaseDaysWorkbookRows: RawAverageRepurchaseDaysRow[] =

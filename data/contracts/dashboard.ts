@@ -183,6 +183,10 @@ export interface NewReturningDailyPoint {
   date: string;
   newCustomers: number | null;
   returningCustomers: number | null;
+  newRevenue: number | null;
+  returningRevenue: number | null;
+  newTopProducts?: TopProductMetric[];
+  returningTopProducts?: TopProductMetric[];
 }
 
 export interface NewReturningCustomersDataset {
@@ -212,6 +216,52 @@ export interface CustomerSegmentationDataset {
   totalCustomers: number;
   totalOrders: number;
   totalRevenue: number;
+}
+
+export interface CustomerSegmentationDailyMetric {
+  id: CustomerSegmentId;
+  sourceSegment: string;
+  segment: string;
+  definition: string;
+  customerCount: number;
+  customerShare: number;
+  totalOrders: number | null;
+  revenue: number;
+  revenueShare: number;
+  averageRecencyDays: number | null;
+  averageFrequency: number | null;
+  averageMonetary: number | null;
+  color: string;
+  topProducts?: TopProductMetric[];
+}
+
+export interface CustomerSegmentationDailyPoint {
+  date: string;
+  segments: CustomerSegmentationDailyMetric[];
+  totalCustomers: number;
+  totalOrders: number | null;
+  totalRevenue: number;
+}
+
+export interface CustomerSegmentationDailyDataset {
+  points: CustomerSegmentationDailyPoint[];
+  sourceRange: string;
+}
+
+export interface CustomerOriginMetric {
+  provinceId: string;
+  province: string;
+  customerCount: number;
+  revenue: number;
+}
+
+export interface TopProductMetric {
+  productId: string;
+  productName: string;
+  rank: number;
+  modelName?: string;
+  orders?: number;
+  quantitySold?: number;
 }
 
 export interface AverageRepurchaseDaysPoint {

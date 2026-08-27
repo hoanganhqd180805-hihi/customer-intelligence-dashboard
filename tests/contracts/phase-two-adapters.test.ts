@@ -5,6 +5,7 @@ import { fetchDashboardSection } from "@/data/services/api-transport";
 import { rawCustomerTypeWorkbookFixture } from "@/data/fixtures/customer-type-workbook.fixture";
 import { adaptCancellationWorkbookData } from "@/data/adapters/cancellation.adapter";
 import { rawCancellationWorkbookFixture, rawPurchaseTimeWorkbookFixture } from "@/data/fixtures/section02-workbook.fixture";
+import { rawJourneyCancellationWorkbookFixture } from "@/data/fixtures/journey-cancellation.fixture";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -71,5 +72,28 @@ describe("latest Section 02 workbook extraction",()=>{
     expect(result.reasons.reduce((sum,row)=>sum+row.lostRevenue,0)).toBe(13_275_204);
     expect(result.reasons.reduce((sum,row)=>sum+row.orderShare,0)).toBeCloseTo(1);
     expect(result.reasons.reduce((sum,row)=>sum+row.lostRevenueShare,0)).toBeCloseTo(1);
+  });
+});
+
+describe("Customer Journey cancellation detail extraction", () => {
+  it("preserves the latest reason-level lost revenue values", () => {
+    const result = adaptCancellationWorkbookData(
+      rawJourneyCancellationWorkbookFixture,
+    );
+
+    expect(result.reasons).toHaveLength(9);
+    expect(result.totalCancelledOrders).toBe(40);
+    expect(result.totalLostRevenue).toBe(7_451_976);
+    expect(result.reasons[0]).toMatchObject({
+      reason:
+        "modify existing order (colour, size, address, voucher, etc.)",
+      cancelledOrders: 9,
+      lostRevenue: 3_749_246,
+    });
+    expect(result.reasons.at(-1)).toMatchObject({
+      reason: "payment procedure too troublesome",
+      cancelledOrders: 1,
+      lostRevenue: 170_320,
+    });
   });
 });

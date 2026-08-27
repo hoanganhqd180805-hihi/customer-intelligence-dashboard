@@ -11,31 +11,32 @@ export interface CustomerSegmentDefinition {
 export const customerSegmentDefinitions: CustomerSegmentDefinition[] = [
   {
     id: "vip",
-    displayName: "VIP",
-    definition: "R ≥ 4, F ≥ 4, M ≥ 4.",
+    displayName: "Top Buyers",
+    definition: "Purchased recently, buy frequently, and spend highly.",
     color: "#7457D9",
-    sourceLabels: ["VIP"],
+    sourceLabels: ["VIP", "Top Buyers"],
   },
   {
     id: "high_value",
-    displayName: "High Value",
-    definition: "R ≥ 3, F ≥ 2, M ≥ 4; excluding VIP.",
+    displayName: "Big Spenders",
+    definition: "Spend highly, but their purchase frequency is still limited.",
     color: "#3B82F6",
-    sourceLabels: ["High Value"],
+    sourceLabels: ["High Value", "Big Spenders"],
   },
   {
     id: "potential",
     displayName: "Potential",
-    definition: "R ≥ 4; excluding VIP and High Value.",
+    definition:
+      "Purchased recently, but frequency and spending are not yet high.",
     color: "#20A7A1",
     sourceLabels: ["Potential"],
   },
   {
     id: "low_value",
-    displayName: "Low Value",
-    definition: "All remaining customers.",
+    displayName: "Occasional Buyers",
+    definition: "Purchase infrequently and do not yet show notable spending.",
     color: "#8A839C",
-    sourceLabels: ["Low Value"],
+    sourceLabels: ["Low Value", "Occasional Buyers"],
   },
 ];
 
