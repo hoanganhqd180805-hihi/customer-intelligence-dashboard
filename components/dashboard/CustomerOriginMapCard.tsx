@@ -148,6 +148,10 @@ export function CustomerOriginMapCard({
         ref={ref}
         className="relative mt-2 w-full"
         onMouseLeave={() => setTooltip(null)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setTooltip(null);
+        }}
       >
         <svg
           width="100%"
@@ -225,7 +229,6 @@ export function CustomerOriginMapCard({
                   onFocus={(event) =>
                     showKeyboardTooltip(metric, event.currentTarget)
                   }
-                  onBlur={() => setTooltip(null)}
                   onClick={(event) =>
                     showTooltip(metric, event.clientX, event.clientY)
                   }
@@ -253,7 +256,7 @@ export function CustomerOriginMapCard({
         {tooltip ? (
           <div
             role="tooltip"
-            className="pointer-events-none absolute z-40 w-[222px] rounded-lg border border-[#d8deea] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(28,39,63,.16)]"
+            className="pointer-events-auto absolute z-40 w-[222px] rounded-lg border border-[#d8deea] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(28,39,63,.16)]"
             style={{ left: tooltip.x, top: tooltip.y }}
           >
             <strong className="block text-[12px] font-semibold text-[#172033]">

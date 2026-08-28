@@ -159,6 +159,10 @@ export function CustomerSegmentationDailyCard({
         ref={ref}
         className="relative mt-2 w-full"
         onMouseLeave={() => setTooltip(null)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setTooltip(null);
+        }}
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
           {segmentDefinitions.map((segment) => (
@@ -171,7 +175,6 @@ export function CustomerSegmentationDailyCard({
               onFocus={(event) =>
                 showKeyboardTooltip(null, segment, event.currentTarget)
               }
-              onBlur={() => setTooltip(null)}
               className="flex cursor-default items-center gap-1 rounded px-1 py-0.5 text-[9.5px] font-medium text-[#465166] outline-none hover:bg-[#f4f7fb] focus-visible:ring-2 focus-visible:ring-[#3b82f6]"
             >
               <span
@@ -267,7 +270,6 @@ export function CustomerSegmentationDailyCard({
                       onFocus={(event) =>
                         showKeyboardTooltip(point, segment, event.currentTarget)
                       }
-                      onBlur={() => setTooltip(null)}
                       className="cursor-default outline-none focus-visible:stroke-[#172e63] focus-visible:stroke-2"
                     />
                   );
@@ -290,7 +292,7 @@ export function CustomerSegmentationDailyCard({
           <div
             role="tooltip"
             aria-label={`${tooltip.segment.segment} segment details`}
-            className="pointer-events-none absolute z-50 w-[232px] rounded-lg border border-[#d8deea] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(28,39,63,.16)]"
+            className="pointer-events-auto absolute z-50 w-[232px] rounded-lg border border-[#d8deea] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(28,39,63,.16)]"
             style={{ left: tooltip.x, top: tooltip.y }}
           >
             <div className="flex items-start gap-2">

@@ -294,6 +294,14 @@ function NewReturningChart({
   );
   const tooltip =
     chartPoints.find((point) => point.date === tooltipTarget?.date) ?? null;
+  const tooltipBaselineY = CHART_MARGIN.top + plotHeight;
+  const tooltipAnchorY = tooltip
+    ? tooltipTarget?.series === "new"
+      ? (tooltip.totalY + tooltip.returningY) / 2
+      : tooltipTarget?.series === "returning"
+        ? (tooltip.returningY + tooltipBaselineY) / 2
+        : tooltip.totalY
+    : 0;
   const yTicks = Array.from({ length: 5 }, (_, index) => (yMax / 4) * index);
   const series = [
     {
@@ -329,7 +337,14 @@ function NewReturningChart({
           </button>
         ))}
       </div>
-      <div className="relative mt-1 h-[280px] w-full">
+      <div
+        className="relative mt-1 h-[280px] w-full"
+        onMouseLeave={() => setTooltipTarget(null)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setTooltipTarget(null);
+        }}
+      >
         <svg
           width="100%"
           height={CUSTOMER_CHART_HEIGHT}
@@ -337,7 +352,6 @@ function NewReturningChart({
           role="img"
           aria-label={`Daily new and returning customer ${mode === "customers" ? "counts" : "revenue"}`}
           className="block overflow-visible"
-          onMouseLeave={() => setTooltipTarget(null)}
         >
           {yTicks.map((tick) => {
             const y = yForValue(tick);
@@ -474,11 +488,9 @@ function NewReturningChart({
                         : null;
                   setTooltipTarget({ date: point.date, series });
                 }}
-                onMouseLeave={() => setTooltipTarget(null)}
                 onFocus={() =>
                   setTooltipTarget({ date: point.date, series: null })
                 }
-                onBlur={() => setTooltipTarget(null)}
               />
             </g>
           ))}
@@ -486,14 +498,14 @@ function NewReturningChart({
         {tooltip ? (
           <div
             role="tooltip"
-            className="pointer-events-none absolute z-40 min-w-[170px] rounded-lg border border-[#d8deea] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(28,39,63,.16)]"
+            className="pointer-events-auto absolute z-40 min-w-[170px] rounded-lg border border-[#d8deea] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(28,39,63,.16)]"
             style={{
               left: tooltip.x,
-              top: Math.max(4, tooltip.totalY - 12),
+              top: tooltipAnchorY,
               transform:
                 tooltip.x > width - 210
-                  ? "translate(-100%, -100%)"
-                  : "translate(10px, -100%)",
+                  ? "translate(-10px, -50%) translateX(-100%)"
+                  : "translate(10px, -50%)",
             }}
           >
             <strong className="block text-[12.5px] font-semibold text-[#172033]">

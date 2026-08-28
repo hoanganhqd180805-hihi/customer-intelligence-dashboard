@@ -24,7 +24,7 @@ describe("Customer Origin top-province chart", () => {
     );
   });
 
-  it("shows province-specific top products on hover", () => {
+  it("keeps the tooltip open and reveals province products on disclosure", () => {
     render(<CustomerOriginMapCard />);
     const hoChiMinhCity = screen.getByRole("graphics-symbol", {
       name: "1. TP. Hồ Chí Minh: 60 customers",
@@ -34,6 +34,15 @@ describe("Customer Origin top-province chart", () => {
 
     const tooltip = screen.getByRole("tooltip");
     expect(tooltip.textContent).toContain("TP. Hồ Chí Minh");
+    expect(tooltip.textContent).not.toContain("Kopiko Coffee Candy");
+    const disclosure = screen.getByRole("button", {
+      name: "Show top 3 products",
+    });
+
+    fireEvent.mouseLeave(hoChiMinhCity, { relatedTarget: disclosure });
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    fireEvent.click(disclosure);
+
     expect(tooltip.textContent).toContain("Kopiko Coffee Candy");
     expect(tooltip.textContent).toContain("Coffee Joy Biscuits");
     expect(tooltip.textContent).toContain("Beng-Beng Wafer");

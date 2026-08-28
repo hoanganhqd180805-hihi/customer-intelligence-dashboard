@@ -51,11 +51,33 @@ describe("Customer Overview workbook product affinity", () => {
     });
 
     fireEvent.mouseMove(dailyTarget, { clientY: 100 });
+    const newTooltip = screen.getByRole("tooltip");
+    const newTooltipTop = Number.parseFloat(newTooltip.style.top);
+    expect(newTooltip.textContent).not.toContain(
+      "Bánh Quy Bơ Mayora Danisa 200G",
+    );
+    const newProductsDisclosure = screen.getByRole("button", {
+      name: "Show top 3 products for New",
+    });
+    fireEvent.mouseLeave(dailyTarget, {
+      relatedTarget: newProductsDisclosure,
+    });
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    fireEvent.click(newProductsDisclosure);
     expect(screen.getByRole("tooltip").textContent).toContain(
       "Bánh Quy Bơ Mayora Danisa 200G",
     );
 
     fireEvent.mouseMove(dailyTarget, { clientY: 220 });
+    const returningTooltipTop = Number.parseFloat(
+      screen.getByRole("tooltip").style.top,
+    );
+    expect(returningTooltipTop).toBeGreaterThan(newTooltipTop);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Show top 3 products for Returning",
+      }),
+    );
     expect(screen.getByRole("tooltip").textContent).toContain(
       "Bánh Quy Mayora Danisa Chocofello 150G",
     );
@@ -83,6 +105,24 @@ describe("Customer Overview workbook product affinity", () => {
     const dailyTooltip = screen.getByRole("tooltip", {
       name: "Big Spenders segment details",
     });
+    expect(dailyTooltip.textContent).not.toContain(
+      "Combo 2 Hủ Kẹo Cà Phê Sữa Mayora Kopiko 560G",
+    );
+    const segmentProductsDisclosure = screen.getByRole("button", {
+      name: "Show top 3 products for Big Spenders",
+    });
+    fireEvent.mouseLeave(
+      screen.getByRole("graphics-symbol", {
+        name: "Jul 27, Big Spenders: 12 customers",
+      }),
+      { relatedTarget: segmentProductsDisclosure },
+    );
+    expect(
+      screen.getByRole("tooltip", {
+        name: "Big Spenders segment details",
+      }),
+    ).toBeTruthy();
+    fireEvent.click(segmentProductsDisclosure);
     expect(dailyTooltip.textContent).toContain(
       "Combo 2 Hủ Kẹo Cà Phê Sữa Mayora Kopiko 560G",
     );
