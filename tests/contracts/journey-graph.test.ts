@@ -329,6 +329,29 @@ describe("compact journey layout", () => {
       expect((outgoingTop + outgoingBottom) / 2).toBeCloseTo(platform.cy, 10);
     }
   });
+  it("routes TikTok Shop into four ordered, non-crossing content flows", () => {
+    const contentOrder = ["ads", "affiliate", "livestream", "video"];
+    const tiktokFlows = layout.links
+      .filter((item) => item.source === "tiktok-shop")
+      .sort((a, b) => a.sy0 - b.sy0);
+
+    expect(tiktokFlows.map((item) => item.target)).toEqual(contentOrder);
+    expect(tiktokFlows).toHaveLength(4);
+    expect(
+      tiktokFlows.every(
+        (item, index) => index === 0 || item.sy0 >= tiktokFlows[index - 1].sy1,
+      ),
+    ).toBe(true);
+    expect(
+      tiktokFlows.map(
+        (item) => layout.nodes.find((node) => node.id === item.target)!.cy,
+      ),
+    ).toEqual(
+      [...contentOrder].map(
+        (id) => layout.nodes.find((node) => node.id === id)!.cy,
+      ),
+    );
+  });
   it("forms the two-path Product View triangle", () => {
     const node = (id: string) => layout.nodes.find((item) => item.id === id)!;
     expect(node("add-to-cart").cy).toBeLessThan(node("product-view").cy);

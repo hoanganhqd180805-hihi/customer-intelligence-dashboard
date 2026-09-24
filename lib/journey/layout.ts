@@ -214,9 +214,19 @@ export function layoutJourney(
   >();
   for (const node of positioned)
     for (const mode of ["source", "target"] as const) {
-      const related = links.filter((link) =>
-        mode === "source" ? link.source === node.id : link.target === node.id,
-      );
+      const related = links
+        .filter((link) =>
+          mode === "source" ? link.source === node.id : link.target === node.id,
+        )
+        .sort((a, b) => {
+          const aOpposite = nodeMap.get(
+            mode === "source" ? a.target : a.source,
+          );
+          const bOpposite = nodeMap.get(
+            mode === "source" ? b.target : b.source,
+          );
+          return (aOpposite?.cy ?? 0) - (bOpposite?.cy ?? 0);
+        });
       const total = related.reduce(
         (sum, link) => sum + Math.max(minRender, link.value * scale),
         0,
