@@ -7,14 +7,7 @@ import type {
 } from "@/data/contracts/dashboard";
 
 export const channelDiagnosticConfig = {
-  channels: [
-    "Ads",
-    "Affiliate",
-    "Livestream",
-    "Product Card",
-    "Shop Tab",
-    "Video",
-  ],
+  channels: ["Ads", "Affiliate", "Livestream", "Video"],
   platforms: ["Shopee", "Lazada", "TikTok Shop"],
   statusPriority: {
     active_no_result: 0,

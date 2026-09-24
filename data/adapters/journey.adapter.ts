@@ -39,6 +39,7 @@ interface JourneyAdapterOptions {
   stages: readonly string[];
   colorsByStep: readonly string[];
   colorByLabel: Record<string, string>;
+  labelAliasesByStep?: Record<number, Record<string, string>>;
 }
 
 const normalizeLabel = (label: string) =>
@@ -66,12 +67,21 @@ export function getJourneyMetricSemantic(
 
 export function adaptJourneyWorkbookRows(
   rows: RawJourneyWorkbookRow[],
-  { stages, colorsByStep, colorByLabel }: JourneyAdapterOptions,
+  {
+    stages,
+    colorsByStep,
+    colorByLabel,
+    labelAliasesByStep = {},
+  }: JourneyAdapterOptions,
 ) {
   let inheritedStage: string | null = null;
   const normalizedRows = rows.map((row) => {
     if (row.stage?.trim()) inheritedStage = row.stage.trim();
-    return { ...row, stage: inheritedStage };
+    const source =
+      labelAliasesByStep[row.sourceStep]?.[row.source.trim()] ?? row.source;
+    const target =
+      labelAliasesByStep[row.targetStep]?.[row.target.trim()] ?? row.target;
+    return { ...row, source, target, stage: inheritedStage };
   });
   const summaryRows = normalizedRows.filter(
     (row) =>
@@ -90,9 +100,25 @@ export function adaptJourneyWorkbookRows(
   const validRows = normalizedRows.filter(
     (row) => !ignoredRowNumbers.has(row.row) && !summaryRowNumbers.has(row.row),
   );
+  const aggregatedRows = [
+    ...validRows
+      .reduce((groups, row) => {
+        const key = `${row.sourceStep}:${normalizeLabel(row.source)}->${row.targetStep}:${normalizeLabel(row.target)}`;
+        const existing = groups.get(key);
+        if (!existing) {
+          groups.set(key, { ...row });
+          return groups;
+        }
+        existing.value += row.value;
+        existing.rate = null;
+        existing.dataType = null;
+        return groups;
+      }, new Map<string, RawJourneyWorkbookRow>())
+      .values(),
+  ];
   const nodeDefinitions = new Map<string, { label: string; step: number }>();
 
-  for (const row of validRows) {
+  for (const row of aggregatedRows) {
     const sourceKey = normalizeLabel(row.source);
     const targetKey = normalizeLabel(row.target);
     const sourceExisting = nodeDefinitions.get(sourceKey);
@@ -116,11 +142,11 @@ export function adaptJourneyWorkbookRows(
   }
 
   const incoming = (label: string) =>
-    validRows
+    aggregatedRows
       .filter((row) => normalizeLabel(row.target) === normalizeLabel(label))
       .reduce((sum, row) => sum + row.value, 0);
   const outgoing = (label: string) =>
-    validRows
+    aggregatedRows
       .filter((row) => normalizeLabel(row.source) === normalizeLabel(label))
       .reduce((sum, row) => sum + row.value, 0);
   const directTraffic = (label: string) =>
@@ -154,7 +180,7 @@ export function adaptJourneyWorkbookRows(
     },
   );
 
-  const links: JourneyLinkData[] = validRows.map((row) => ({
+  const links: JourneyLinkData[] = aggregatedRows.map((row) => ({
     id: `row-${row.row}-${slug(row.source)}-${slug(row.target)}`,
     source: slug(row.source),
     target: slug(row.target),
@@ -227,6 +253,7 @@ export function adaptJourneyWorkbookRows(
     nodes,
     links,
     validRows,
+    aggregatedRows,
     summaryRows,
     ignoredRows,
     flowConflicts,

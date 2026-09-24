@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  aggregatedJourneyRows,
   ignoredWorkbookJourneyRows,
   journeyContributionRateConflicts,
   journeyContributionShareTotals,
@@ -32,7 +33,8 @@ const link = (source: string, target: string) =>
 describe("latest Customer Journey workbook fixture", () => {
   it("uses the latest Sankey Data rows and keeps same-stage totals out of the graph", () => {
     expect(validWorkbookJourneyRows).toHaveLength(40);
-    expect(journeyLinks).toHaveLength(40);
+    expect(aggregatedJourneyRows).toHaveLength(37);
+    expect(journeyLinks).toHaveLength(37);
     expect(ignoredWorkbookJourneyRows.map((row) => row.row)).toEqual([3]);
     expect(
       summaryWorkbookJourneyRows.map(({ row, source, value }) => ({
@@ -49,7 +51,8 @@ describe("latest Customer Journey workbook fixture", () => {
     expect(link("YouTube", "Lazada").value).toBe(3_000);
     expect(link("Facebook", "TikTok Shop").value).toBe(3_000);
     expect(link("Shopee", "Ads").value).toBe(25_000);
-    expect(link("Ads", "Product View").value).toBe(8_000);
+    expect(link("TikTok Shop", "Ads").value).toBe(11_500);
+    expect(link("Ads", "Product View").value).toBe(11_900);
     expect(link("Product View", "Add to Cart").value).toBe(8_350);
     expect(link("Order", "Complete").value).toBe(9_150);
   });
@@ -102,12 +105,14 @@ describe("latest Customer Journey workbook fixture", () => {
         totalTraffic: 18_500,
       },
     ]);
-    expect(node("Ads").value).toBe(32_000);
+    expect(node("Ads").value).toBe(43_500);
     expect(node("Affiliate").value).toBe(19_000);
     expect(node("Livestream").value).toBe(13_000);
     expect(node("Video").value).toBe(14_000);
-    expect(node("Product Card").value).toBe(4_000);
-    expect(node("Shop Tab").value).toBe(7_500);
+    expect(journeyNodes.some((item) => item.label === "Product Card")).toBe(
+      false,
+    );
+    expect(journeyNodes.some((item) => item.label === "Shop Tab")).toBe(false);
     expect(node("Product View").value).toBe(23_700);
     expect(node("Add to Cart").value).toBe(8_350);
     expect(node("Order").value).toBe(11_900);
@@ -225,7 +230,7 @@ describe("journey graph traversal", () => {
     expect(
       getActiveJourneyGraph("product-view", journeyNodes, journeyLinks).linkIds
         .size,
-    ).toBe(40));
+    ).toBe(37));
 });
 
 describe("compact journey layout", () => {
@@ -311,10 +316,7 @@ describe("compact journey layout", () => {
           flowTop,
           flowBottom,
           valueBasedHeight: platform.y1 - platform.y0,
-          height: Math.max(
-            flowBottom - flowTop,
-            platform.y1 - platform.y0,
-          ),
+          height: Math.max(flowBottom - flowTop, platform.y1 - platform.y0),
         }),
       );
       expect(body.y0).toBeLessThanOrEqual(flowTop);

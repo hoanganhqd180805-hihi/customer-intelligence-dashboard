@@ -154,7 +154,7 @@ export function layoutJourney(
   const gapByStage: Record<string, number> = {
     "EXTERNAL SOURCE": 18,
     MARKETPLACE: 28,
-    "CONTENT / ENTRY DRIVER": 14,
+    "CONTENT / ENTRY DRIVER": 20,
     "ORDER RESULT": 46,
     "POST-PURCHASE": 46,
   };
