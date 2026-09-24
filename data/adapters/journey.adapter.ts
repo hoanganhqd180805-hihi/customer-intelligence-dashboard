@@ -40,6 +40,7 @@ interface JourneyAdapterOptions {
   colorsByStep: readonly string[];
   colorByLabel: Record<string, string>;
   labelAliasesByStep?: Record<number, Record<string, string>>;
+  excludedLabelsByStep?: Record<number, readonly string[]>;
 }
 
 const normalizeLabel = (label: string) =>
@@ -72,6 +73,7 @@ export function adaptJourneyWorkbookRows(
     colorsByStep,
     colorByLabel,
     labelAliasesByStep = {},
+    excludedLabelsByStep = {},
   }: JourneyAdapterOptions,
 ) {
   let inheritedStage: string | null = null;
@@ -89,6 +91,19 @@ export function adaptJourneyWorkbookRows(
       row.sourceStep === row.targetStep,
   );
   const summaryRowNumbers = new Set(summaryRows.map((row) => row.row));
+  const excludedRows = normalizedRows.filter((row) => {
+    const excludedSources = excludedLabelsByStep[row.sourceStep] ?? [];
+    const excludedTargets = excludedLabelsByStep[row.targetStep] ?? [];
+    return (
+      excludedSources.some(
+        (label) => normalizeLabel(label) === normalizeLabel(row.source),
+      ) ||
+      excludedTargets.some(
+        (label) => normalizeLabel(label) === normalizeLabel(row.target),
+      )
+    );
+  });
+  const excludedRowNumbers = new Set(excludedRows.map((row) => row.row));
   const ignoredRows = normalizedRows.filter(
     (row) =>
       !row.source.trim() ||
@@ -98,7 +113,10 @@ export function adaptJourneyWorkbookRows(
   );
   const ignoredRowNumbers = new Set(ignoredRows.map((row) => row.row));
   const validRows = normalizedRows.filter(
-    (row) => !ignoredRowNumbers.has(row.row) && !summaryRowNumbers.has(row.row),
+    (row) =>
+      !ignoredRowNumbers.has(row.row) &&
+      !summaryRowNumbers.has(row.row) &&
+      !excludedRowNumbers.has(row.row),
   );
   const aggregatedRows = [
     ...validRows
@@ -180,20 +198,29 @@ export function adaptJourneyWorkbookRows(
     },
   );
 
-  const links: JourneyLinkData[] = aggregatedRows.map((row) => ({
-    id: `row-${row.row}-${slug(row.source)}-${slug(row.target)}`,
-    source: slug(row.source),
-    target: slug(row.target),
-    value: row.value,
-    label: formatRate(row.rate),
-    rate: typeof row.rate === "number" ? row.rate : null,
-    rateLabel: typeof row.rate === "string" ? row.rate : null,
-    metric: getJourneyMetricSemantic(row.sourceStep, row.targetStep),
-    sourceStep: row.sourceStep,
-    targetStep: row.targetStep,
-    sourceGroup: row.stage,
-    dataType: row.dataType ?? null,
-  }));
+  const links: JourneyLinkData[] = aggregatedRows.map((row) => {
+    const metric = getJourneyMetricSemantic(row.sourceStep, row.targetStep);
+    const rate =
+      metric === "contribution_share"
+        ? row.value / incoming(row.target)
+        : typeof row.rate === "number"
+          ? row.rate
+          : null;
+    return {
+      id: `row-${row.row}-${slug(row.source)}-${slug(row.target)}`,
+      source: slug(row.source),
+      target: slug(row.target),
+      value: row.value,
+      label: formatRate(rate ?? row.rate),
+      rate,
+      rateLabel: typeof row.rate === "string" ? row.rate : null,
+      metric,
+      sourceStep: row.sourceStep,
+      targetStep: row.targetStep,
+      sourceGroup: row.stage,
+      dataType: row.dataType ?? null,
+    };
+  });
 
   const flowConflicts: JourneyFlowConflict[] = nodes
     .map((node) => ({
@@ -217,14 +244,16 @@ export function adaptJourneyWorkbookRows(
     const platformLinks = contributionLinks.filter(
       (link) => link.target === platformId,
     );
+    const providedShareTotal = platformLinks.reduce(
+      (sum, link) => sum + (link.rate ?? 0),
+      0,
+    );
     return {
       platform:
         nodes.find((node) => node.id === platformId)?.label ?? platformId,
       incomingTraffic: platformLinks.reduce((sum, link) => sum + link.value, 0),
-      providedShareTotal: platformLinks.reduce(
-        (sum, link) => sum + (link.rate ?? 0),
-        0,
-      ),
+      providedShareTotal:
+        Math.abs(providedShareTotal - 1) < 0.000_001 ? 1 : providedShareTotal,
     };
   });
 
@@ -256,6 +285,7 @@ export function adaptJourneyWorkbookRows(
     aggregatedRows,
     summaryRows,
     ignoredRows,
+    excludedRows,
     flowConflicts,
     contributionShareTotals,
     contributionRateConflicts,

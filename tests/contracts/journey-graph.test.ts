@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregatedJourneyRows,
+  excludedWorkbookJourneyRows,
   ignoredWorkbookJourneyRows,
   journeyContributionRateConflicts,
   journeyContributionShareTotals,
@@ -32,10 +33,14 @@ const link = (source: string, target: string) =>
 
 describe("latest Customer Journey workbook fixture", () => {
   it("uses the latest Sankey Data rows and keeps same-stage totals out of the graph", () => {
-    expect(validWorkbookJourneyRows).toHaveLength(40);
-    expect(aggregatedJourneyRows).toHaveLength(37);
-    expect(journeyLinks).toHaveLength(37);
+    expect(validWorkbookJourneyRows).toHaveLength(37);
+    expect(aggregatedJourneyRows).toHaveLength(34);
+    expect(journeyLinks).toHaveLength(34);
     expect(ignoredWorkbookJourneyRows.map((row) => row.row)).toEqual([3]);
+    expect(excludedWorkbookJourneyRows.map((row) => row.row)).toEqual([
+      14, 15, 16,
+    ]);
+    expect(journeyNodes.some((item) => item.label === "Threads")).toBe(false);
     expect(
       summaryWorkbookJourneyRows.map(({ row, source, value }) => ({
         row,
@@ -59,22 +64,22 @@ describe("latest Customer Journey workbook fixture", () => {
 
   it("treats External Source links as contribution shares per platform", () => {
     expect(link("Google", "Shopee").metric).toBe("contribution_share");
-    expect(link("Google", "Shopee").rate).toBeCloseTo(7_500 / 31_500, 10);
+    expect(link("Google", "Shopee").rate).toBeCloseTo(7_500 / 28_500, 10);
     expect(journeyContributionRateConflicts).toEqual([]);
     expect(journeyContributionShareTotals).toEqual([
       {
         platform: "Shopee",
-        incomingTraffic: 31_500,
+        incomingTraffic: 28_500,
         providedShareTotal: 1,
       },
       {
         platform: "TikTok Shop",
-        incomingTraffic: 23_000,
+        incomingTraffic: 17_000,
         providedShareTotal: 1,
       },
       {
         platform: "Lazada",
-        incomingTraffic: 8_500,
+        incomingTraffic: 7_000,
         providedShareTotal: 1,
       },
     ]);
@@ -82,27 +87,27 @@ describe("latest Customer Journey workbook fixture", () => {
 
   it("includes direct app traffic in normalized platform totals", () => {
     expect(node("Google").value).toBe(10_500);
-    expect(node("Shopee").value).toBe(56_500);
-    expect(node("TikTok Shop").value).toBe(43_000);
-    expect(node("Lazada").value).toBe(18_500);
+    expect(node("Shopee").value).toBe(53_500);
+    expect(node("TikTok Shop").value).toBe(37_000);
+    expect(node("Lazada").value).toBe(17_000);
     expect(journeyPlatformTrafficTotals).toEqual([
       {
         platform: "Shopee",
-        externalTraffic: 31_500,
+        externalTraffic: 28_500,
         directTraffic: 25_000,
-        totalTraffic: 56_500,
+        totalTraffic: 53_500,
       },
       {
         platform: "TikTok Shop",
-        externalTraffic: 23_000,
+        externalTraffic: 17_000,
         directTraffic: 20_000,
-        totalTraffic: 43_000,
+        totalTraffic: 37_000,
       },
       {
         platform: "Lazada",
-        externalTraffic: 8_500,
+        externalTraffic: 7_000,
         directTraffic: 10_000,
-        totalTraffic: 18_500,
+        totalTraffic: 17_000,
       },
     ]);
     expect(node("Ads").value).toBe(43_500);
@@ -119,9 +124,8 @@ describe("latest Customer Journey workbook fixture", () => {
     expect(node("Complete").value).toBe(9_150);
     expect(journeyFlowConflicts).toEqual(
       expect.arrayContaining([
-        { node: "Shopee", incoming: 31_500, outgoing: 52_000 },
-        { node: "TikTok Shop", incoming: 23_000, outgoing: 30_500 },
-        { node: "Lazada", incoming: 8_500, outgoing: 7_000 },
+        { node: "Shopee", incoming: 28_500, outgoing: 52_000 },
+        { node: "TikTok Shop", incoming: 17_000, outgoing: 30_500 },
         { node: "Product View", incoming: 23_700, outgoing: 15_930 },
         { node: "Order", incoming: 11_900, outgoing: 11_890 },
         { node: "Complete", incoming: 9_150, outgoing: 10_380 },
@@ -180,7 +184,7 @@ describe("latest Customer Journey workbook fixture", () => {
     ];
 
     expect(rates).toEqual([
-      89_500 / 118_000,
+      89_500 / 107_500,
       23_700 / 89_500,
       8_350 / 23_700,
       4_320 / 8_350,
@@ -191,7 +195,7 @@ describe("latest Customer Journey workbook fixture", () => {
       10,
     );
     expect(rates.map((rate) => 1 - rate)).toEqual([
-      1 - 89_500 / 118_000,
+      1 - 89_500 / 107_500,
       1 - 23_700 / 89_500,
       1 - 8_350 / 23_700,
       1 - 4_320 / 8_350,
@@ -230,7 +234,7 @@ describe("journey graph traversal", () => {
     expect(
       getActiveJourneyGraph("product-view", journeyNodes, journeyLinks).linkIds
         .size,
-    ).toBe(37));
+    ).toBe(34));
 });
 
 describe("compact journey layout", () => {
@@ -280,12 +284,12 @@ describe("compact journey layout", () => {
       "Lazada",
     ]);
     expect(platforms.map((item) => item.value)).toEqual([
-      56_500, 43_000, 18_500,
+      53_500, 37_000, 17_000,
     ]);
     expect(platforms[1].y0 - platforms[0].y1).toBeGreaterThanOrEqual(20);
     expect(platforms[2].y0 - platforms[1].y1).toBeGreaterThanOrEqual(20);
-    expect(platforms[0].h / platforms[1].h).toBeCloseTo(56_500 / 43_000, 10);
-    expect(platforms[1].h / platforms[2].h).toBeCloseTo(43_000 / 18_500, 10);
+    expect(platforms[0].h / platforms[1].h).toBeCloseTo(53_500 / 37_000, 10);
+    expect(platforms[1].h / platforms[2].h).toBeCloseTo(37_000 / 17_000, 10);
     for (const platform of platforms) {
       const attached = layout.links.filter(
         (item) => item.source === platform.id || item.target === platform.id,

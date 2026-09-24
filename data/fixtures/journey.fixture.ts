@@ -493,6 +493,9 @@ const adaptedJourney = adaptJourneyWorkbookRows(workbookJourneyRows, {
   stages: journeyStages,
   colorsByStep,
   colorByLabel,
+  excludedLabelsByStep: {
+    0: ["Threads"],
+  },
   labelAliasesByStep: {
     2: {
       "Product Card": "Ads",
@@ -507,6 +510,7 @@ export const validWorkbookJourneyRows = adaptedJourney.validRows;
 export const aggregatedJourneyRows = adaptedJourney.aggregatedRows;
 export const summaryWorkbookJourneyRows = adaptedJourney.summaryRows;
 export const ignoredWorkbookJourneyRows = adaptedJourney.ignoredRows;
+export const excludedWorkbookJourneyRows = adaptedJourney.excludedRows;
 export const journeyFlowConflicts = adaptedJourney.flowConflicts;
 export const journeyContributionShareTotals =
   adaptedJourney.contributionShareTotals;
